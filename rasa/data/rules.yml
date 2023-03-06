@@ -1,0 +1,28 @@
+version: "3.1"
+
+rules:
+  - rule: Say you're welcome when user says thanks
+    steps:
+    - intent: thankyou
+    - action: utter_youre_welcome
+
+  - rule: Say 'I am a bot' anytime the user challenges
+    steps:
+    - intent: bot_challenge
+    - action: utter_iamabot
+
+  - rule: activate name survey
+    steps:
+      - intent: ready
+      - action: glucose_form
+      - active_loop: glucose_form
+
+  - rule: submit survey
+    condition:
+    - active_loop: glucose_form
+    steps:
+      - action: glucose_form
+      - active_loop: null
+      - action: utter_submit
+      - action: utter_slots_values
+      - action: action_restart

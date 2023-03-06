@@ -1,0 +1,29 @@
+<?php
+    return [
+        'db' => [
+            'host'      => 'mssql',
+            'name'      => 'myDB',
+            'user'      => 'SA',
+            'pass'      => 'Codeman01',
+        ],
+        'ldap' => [
+            'enabled'   => false,
+            'host'      => '',
+            'prefix'    => '',
+            'suffix'    => '',
+        ],
+        'users' => [
+            'auto-create'   => false,
+            'permitted'     => array()
+        ],
+        'admins' => array(),
+        'sessions' => [
+            'timeout'   => 7200,
+        ],
+        'twilio' => [
+                'account_sid'   => '',
+                'auth_token'    => '',
+                'from_number'   => ''
+            ],
+        'riva_url' => 'localhost',
+        ];

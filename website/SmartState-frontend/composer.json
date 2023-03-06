@@ -1,0 +1,20 @@
+{
+  "name": "vendor_name/orders",
+  "description": "description",
+  "minimum-stability": "stable",
+  "license": "proprietary",
+  "authors": [
+    {
+      "name": "author",
+      "email": "email@example.com"
+    }
+  ],
+  "require": {
+    "altorouter/altorouter": "2.0.1",
+    "ext-ldap": "*",
+    "ext-pdo": "*",
+    "ext-json": "*",
+    "setasign/fpdf": "^1.8",
+    "twilio/sdk": "^6.25"
+  }
+}

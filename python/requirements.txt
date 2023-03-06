@@ -1,0 +1,4 @@
+nvidia-riva-client==2.8.0
+Flask==2.2.2
+Flask-Cors==3.0.10
+librosa==0.9.2

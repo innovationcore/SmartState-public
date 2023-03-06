@@ -1,0 +1,298 @@
+version: "3.1"
+
+nlu:
+- intent: greet
+  examples: |
+    - hey
+    - hello
+    - hi
+    - hello there
+    - good morning
+    - good evening
+    - moin
+    - hey there
+    - let's go
+    - hey dude
+    - goodmorning
+    - goodevening
+    - good afternoon
+    - greetings
+    - Hi bot
+    - Hey bot
+    - hi again
+    - hi folks
+    - hi Mister
+    - hi pal!
+    - hi there
+    - hello everybody
+    - hello is anybody there
+    - hello robot
+    - hallo
+    - heeey
+    - hi hi
+    - hey hey
+    - hello there
+    - yo
+    - hola
+    - hi?
+    - hey bot!
+    - hello friend
+
+- intent: goodbye
+  examples: |
+    - cu
+    - good by
+    - cee you later
+    - good night
+    - bye
+    - goodbye
+    - have a nice day
+    - see you around
+    - bye bye
+    - see you later
+
+- intent: affirm
+  examples: |
+    - yes
+    - y
+    - indeed
+    - of course
+    - that sounds good
+    - correct
+    - sure
+    - i guess so
+    - yeah
+    - yea
+    - ya
+    - yep
+    - yepper
+    - hell yeah
+    - hell yes
+    - absolutely
+    - i guess
+    - i have
+
+- intent: deny
+  examples: |
+    - no
+    - n
+    - never
+    - I don't think so
+    - don't like that
+    - no way
+    - not really
+    - no thanks
+    - no thank you
+    - nah
+    - nope
+    - i guess not
+    - nay
+    - hell no
+    - i guess not
+    - i have not
+    - I haven't
+
+- intent: mood_great
+  examples: |
+    - perfect
+    - great
+    - amazing
+    - feeling like a king
+    - wonderful
+    - I am feeling very good
+    - I am great
+    - I am amazing
+    - I am going to save the world
+    - super stoked
+    - extremely good
+    - so so perfect
+    - so good
+    - so perfect
+
+- intent: mood_unhappy
+  examples: |
+    - my day was horrible
+    - I am sad
+    - I don't feel very well
+    - I am disappointed
+    - super sad
+    - I'm so sad
+    - sad
+    - very sad
+    - unhappy
+    - not good
+    - not very good
+    - extremly sad
+    - so saad
+    - so sad
+
+- intent: bot_challenge
+  examples: |
+    - are you a bot?
+    - are you a human?
+    - am I talking to a bot?
+    - am I talking to a human?
+
+- intent: thankyou
+  examples: |
+    - okay great thanks
+    - thank you
+    - thanks
+    - thanks bye
+    - thanks
+    - um thank you good bye
+    - okay cool uh good bye thank you
+    - okay thank you good bye
+    - you rock
+    - and thats all thank you and good bye
+    - thank you and good bye
+    - sorry about my mistakes thank you good bye
+    - noise thank you good bye
+    - thank you goodbye noise
+    - okay thank you goodbye
+    - uh thank you good bye
+    - thank you goodbye
+    - thank you goodbye noise thank you goodbye
+    - breath thank you goodbye
+    - okay thank you
+    - thanks goodbye
+    - ah thank you goodbye
+    - thank you noise
+    - thank you good bye
+    - breath thank you very much goodbye
+    - noise thank you goodbye
+    - unintelligible thank you goodbye
+    - uh okay thank you good bye
+    - thank you bye
+    - um okay thank you good bye
+
+- intent: out_of_scope
+  examples: |
+    - can you share your boss with me?
+    - i want to get to know your owner
+    - i want to know the company which designed you
+    - i want to know the company which generated you
+    - i want to know the company which invented you
+    - i want to know who invented you
+    - May I ask who invented you?
+    - please tell me the company who created you
+    - please tell me who created you
+    - tell me more about your creators
+    - tell me more about your founders
+    - Ahoy matey how are you?
+    - are you alright
+    - are you having a good day
+    - Are you ok?
+    - are you okay
+    - Do you feel good?
+    - how are things going
+    - how are things with you?
+    - How are things?
+    - how are you
+    - how are you doing
+    - how are you doing this morning
+    - how are you feeling
+    - how are you today
+    - How are you?
+    - How is the weather today?
+    - What's the weather like?
+    - How is the weather?
+    - What is the weather at your place?
+    - Do you have good weather?
+    - Is it raining?
+    - What's it like out there?
+    - Is it hot or cold?
+    - Beautiful day, isn't it?
+    - What's the weather forecast?
+    - Is it quite breezy outside?
+
+- intent: ask_eat_healthy
+  examples: |
+    - What's considered a good diet?
+    - What's considered healthy food?
+    - How do I follow a healthy diet?
+    - What's an example of a healthy diet?
+    - How do I eat healthy?
+
+- intent: ask_exercise
+  examples: |
+    - What's a good amount of exercise for someone in their thirties?
+    - How much exercise should I be getting?
+    - How much exercise is recommended?
+    - Is walking once a day enough exercise?
+    - How much exercise should I do every day?
+    - How many times per week should I go to the gym?
+
+- intent: inform_stress
+  examples: |
+    - [low_high](stress)
+    - really [low_high](stress)
+    - pretty [low_high](stress)
+    - extremely [low_high](stress)
+    - it's pretty [low_high](stress)
+    - it is [low_high](stress)
+
+- synonym: low_high
+  examples: |
+    - low
+    - high
+
+- intent: redo
+  examples: |
+    - restart
+    - redo
+    - redux
+    - mistake
+    - i made a mistake
+    - i want to restart
+
+- intent: ready
+  examples: |
+    - ready
+    - I'm ready
+    - i am ready
+    - ready to go
+    - ready to start
+    - start
+
+- intent: not_ready
+  examples: |
+    - not ready
+    - I'm not ready
+    - I am not ready
+    - not ready to go
+
+- intent: stop
+  examples: |
+    - ok then you cant help me
+    - that was shit, you're not helping
+    - you can't help me
+    - you can't help me with what i need
+    - i guess you can't help me then
+    - ok i guess you can't help me
+    - that's not what i want
+    - this is leading to nothing
+    - this conversation is not really helpful
+    - you cannot help me with what I want
+    - hm i don't think you can do what i want
+    - stop
+    - do you get anything?
+    - and you call yourself bot company? pff
+    - and that's it?
+    - nothing else?
+    - stop this
+    - stop that
+    - i want to quit
+    - i want to stop
+
+- intent: need_help
+  examples: |
+    - I need help
+    - help
+    - help me
+    - I am confused
+    - i'm confused
+    - what does this mean
+    - what is this
+    - need more info
+    - I don't understand

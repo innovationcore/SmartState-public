@@ -1,0 +1,137 @@
+version: "3.1"
+
+intents:
+- greet
+- deny
+- goodbye
+- affirm
+- mood_great
+- mood_unhappy
+- bot_challenge
+- out_of_scope:
+    use_entities: []
+- ask_eat_healthy
+- ask_exercise
+- inform_stress
+- thankyou
+- redo
+- ready
+- not_ready
+- stop
+- need_help
+
+entities:
+ - last_eaten
+ - exercise
+ - stress
+ - water
+ - need_help
+
+slots:
+  last_eaten:
+    type: text
+    influence_conversation: false
+    mappings:
+      - type: from_text
+        not_intent: stop
+        conditions:
+         - active_loop: glucose_form
+           requested_slot: last_eaten
+  exercise:
+    type: text
+    influence_conversation: false
+    mappings:
+      - type: from_text
+        not_intent: stop
+        conditions:
+         - active_loop: glucose_form
+           requested_slot: exercise
+  stress:
+    type: text
+    influence_conversation: false
+    mappings:
+      - type: from_text
+        not_intent: stop
+        conditions:
+         - active_loop: glucose_form
+           requested_slot: stress
+  water:
+    type: text
+    influence_conversation: false
+    mappings:
+      - type: from_text
+        not_intent: stop
+        conditions:
+         - active_loop: glucose_form
+           requested_slot: water
+  need_help:
+    type: text
+    influence_conversation: false
+    mappings:
+      - type: from_text
+        not_intent: stop
+        conditions:
+         - active_loop: glucose_form
+           requested_slot: need_help
+
+
+responses:
+  utter_default:
+  - text: Sorry I didn't get that. Can you rephrase?
+  utter_greet:
+  - text: "It's time for your daily wellness check. Are you ready to answer a few questions about your health?"
+  utter_did_that_help:
+  - text: Did that help you?
+  utter_goodbye:
+  - text: Goodbye.
+  utter_iamabot:
+  - text: I am a bot, powered by Rasa.
+  utter_ask_last_eaten:
+  - text: When was the last time you ate?
+  utter_ask_exercise:
+  - text: Have you exercised today?
+  utter_ask_stress:
+  - text: Is your stress level low or high?
+  utter_ask_water:
+  - text: Have you been drinking water?
+  utter_ask_need_help:
+  - text: Would you like a healthcare professional to call you about these results?
+  utter_submit:
+  - text: Ok. Great!
+  utter_slots_values:
+  - text: "Here's your daily wellness log:\n
+            - Last Time Eaten: {last_eaten}\n
+            - Exercise: {exercise}\n
+            - Stress Level: {stress}\n
+            - Drinking Water: {water}\n
+            - Contact from Healthcare Professional: {need_help}\n
+            Thank you for your time. If this looks correct, please click the 'I'm finished!' button. If you need to make corrections, type or say 'redo'."
+  utter_ask_continue:
+  - text: "Are you sure you want to quit?"
+  utter_try_again:
+  - text: Ok. Let's try again.
+  utter_youre_welcome:
+  - text: You're welcome. Have a great day!
+
+actions:
+- utter_greet
+- utter_slots_values
+- utter_submit
+- validate_glucose_form
+
+
+forms:
+  glucose_form:
+    # ignored_intents:
+    #   - out_of_scope
+    required_slots:
+      - last_eaten
+      - exercise
+      - stress
+      - water
+      - need_help
+      
+
+session_config:
+  session_expiration_time: 30  # value in minutes
+  carry_over_slots_to_new_session: false

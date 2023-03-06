@@ -1,0 +1,70 @@
+version: "3.2"
+services:
+  php:
+    build: './website/SmartState-backend/php/'
+    networks:
+      - SmartState-backend
+    volumes:
+      - ./website/SmartState-frontend/:/var/www/html/
+  
+  apache:
+    build: './website/SmartState-backend/apache/'
+    depends_on:
+      - php
+      - mssql
+    networks:
+      - SmartState-frontend
+      - SmartState-backend
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./website/SmartState-frontend/:/var/www/html/
+      - ./website/SmartState-backend/apache/mycert.crt:/etc/ssl/certs/mycert.crt
+      - ./website/SmartState-backend/apache/mycert.key:/etc/ssl/private/mycert.key
+      - ./website/SmartState-backend/apache/demo.apache.conf:/usr/local/apache2/conf/demo.apache.conf
+      - ./website/SmartState-backend/apache/my-httpd.conf:/usr/local/apache2/conf/httpd.conf
+      - ./website/SmartState-backend/apache/my-httpd-ssl.conf:/usr/local/apache2/conf/extra/httpd-ssl.conf
+
+  mssql:
+    build: './website/SmartState-backend/sqlserver/'
+    networks:
+      - SmartState-backend
+    ports:
+      - "1433:1433"
+    volumes:
+      - SmartState-site-data:/var/opt/mssql
+
+  rasa:
+    image: rasa/rasa:latest-full
+    networks: 
+      - rasa-network
+    ports:
+      - "5005:5005"
+    volumes:
+      - "./rasa/:/app/"
+    command:
+      - run
+
+  action_server:
+    image: rasa/rasa-sdk:latest
+    networks: 
+      - rasa-network
+    ports:
+      - "5055:5055"
+    volumes:
+      - "./rasa/actions:/app/actions"
+
+  duckling:
+    image: rasa/duckling:latest
+    networks: 
+      - rasa-network
+    ports:
+      - "8000:8000"
+
+networks:
+  SmartState-frontend:
+  SmartState-backend:
+  rasa-network:
+volumes:
+  SmartState-site-data:
