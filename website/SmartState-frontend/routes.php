@@ -135,7 +135,9 @@
         $router->map('POST', '/participants/get-time-zone', function() {
             ParticipantsController::getTimeZone(get_session("/", [0,1]));
         }, 'participants-gettimezone');
-
+        $router->map('POST', '/participants/get-state-machine', function() {
+            ParticipantsController::getStateMachine(get_session("/", [0,1]));
+        }, 'participants-getstatemachine');
     } catch (Exception $e) {
         die("Failed to create route(s) from ParticipantsController section: " . $e->getMessage());
     }

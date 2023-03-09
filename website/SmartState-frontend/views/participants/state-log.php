@@ -25,6 +25,15 @@ include_once __DIR__ . '/../_header.php';
     </div>
 
     <div class="row">
+        <div class="col-md-12">
+            <button type="button" class="btn btn-secondary mb-2" data-toggle="collapse" data-target="#state-machine" aria-expanded="false" aria-controls="collapseExample">Show/Hide State Machine</button>
+            <div class="collapse mb-2" id="state-machine">
+                <div id="state-machine-content" class="card card-body"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
         <div class="col">
             <table id="collection" class="table table-bordered dt-responsive responsive-text" style="width:100%">
                 <thead>
@@ -46,6 +55,10 @@ include_once __DIR__ . '/../_header.php';
     </div>
 
 
+    <!-- These scripts read graphviz files -->
+    <script src="https://d3js.org/d3.v5.min.js"></script>
+    <script src="https://unpkg.com/@hpcc-js/wasm@0.3.11/dist/index.min.js"></script>
+    <script src="https://unpkg.com/d3-graphviz@3.0.5/build/d3-graphviz.js"></script>
    
     <script type="text/javascript">
         var collection = {};
@@ -140,6 +153,7 @@ include_once __DIR__ . '/../_header.php';
                                     updateDT();
                                     updateCurrentState();
                                     updateNextStates();
+                                    loadGraphFile();
                                 } else {
                                     console.error(data.error_message);
                                 }
@@ -156,8 +170,6 @@ include_once __DIR__ . '/../_header.php';
                     console.error(error);
                 }
             });
-
-            
         });
 
         $('#select-participant-state').on('changed.bs.select', function (e) {
@@ -171,6 +183,7 @@ include_once __DIR__ . '/../_header.php';
             updateDT();
             updateNextStates();
             updateCurrentState();
+            loadGraphFile();
         });
 
         function updateCurrentState(){
@@ -245,6 +258,7 @@ include_once __DIR__ . '/../_header.php';
                         updateNextStates();
                         $('#collection').DataTable().destroy();
                         updateDT();
+                        loadGraphFile();
                     } else {
                         console.error(data.status_desc);
                     }
@@ -255,6 +269,45 @@ include_once __DIR__ . '/../_header.php';
             });
         }
 
+        // graphviz stuff
+        function loadGraphFile(){
+            let protocol = $('#select-participant-protocol').find("option:selected").text();
+            $.ajax({
+                url : '/participants/get-state-machine',
+                type : 'POST',
+                data: {'protocol': protocol},
+                success : function(data) {
+                    let content = data.content.replaceAll("\n", "");
+                    if (data.success){
+                        let currentState = $('#current-state').html();
+                        
+                        d3.select("#state-machine-content").graphviz().attributer(function(d){
+                            if (d.id.includes(currentState)) { //polygons are arrow points, text and g are text inside bubbles and connecting bubbles,
+                                if (d.tag == "path"){
+                                    if (d.id.includes("->")){
+                                        let drawArrows = d.id.split("->");
+                                        if (drawArrows[0].includes(currentState)){
+                                            d.attributes.stroke = "#ff2500";
+                                        }
+                                    } else {
+                                        d.attributes.fill = "#62dfff";
+                                    }
+                                } else if (d.tag == "polygon") {
+                                    let drawArrows = d.id.split("->");
+                                    if (drawArrows[0].includes(currentState)){
+                                        d.attributes.fill = "#ff2500";
+                                        d.attributes.stroke = "#ff2500";
+                                    }
+                                }
+                            }
+                        }).renderDot(data.content);
+                    }
+                },
+                error : function(request,error) {
+                    console.error(error);
+                }
+            });
+        }
     </script>
 <?php
 include_once __DIR__ . '/../_footer.php';

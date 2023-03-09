@@ -349,4 +349,23 @@ class ParticipantsController {
             )
         );
     }
+
+    public static function getStateMachine(UserSession $userSession) {
+        header('Content-Type: application/json');
+        $success = false;
+        $error_message = "";
+        $content = "";
+
+        if(empty($_POST['protocol']) || is_null($_POST{'protocol'})) {
+            $error_message = 'You must provide a protocol.';
+        } else {
+            $protocol = $_POST['protocol'];
+            //$content = scandir(".");
+            $content = file_get_contents("./img/".$protocol.".gv");
+            $success = true;
+        }
+        
+        $ret = array('success' => $success, 'error_message' => $error_message, 'content' => $content);
+        echo json_encode((object) array_filter($ret, function($value) { return $value !== null; }));
+    }
 }
