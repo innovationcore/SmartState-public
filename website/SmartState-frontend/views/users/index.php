@@ -1,25 +1,31 @@
 <?php
-/** @var UserSession $userSession */
+/** @var User $user */
 $page = "users";
+global $rootURL;
 include_once __DIR__ . '/../_header.php';
 ?>
     <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
         <h1 class="h4">Users</h1>
-        <div class="btn-toolbar mb-2 mb-md-0">
-            <button type="button" class="btn btn-success" data-toggle="modal" data-target="#userModal">
-                <i class="fas fa-user-plus"></i> Add New User
-            </button>
-        </div>
+        <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#userModal">
+            <i class="fas fa-user-plus"></i> Add User
+        </button>
     </div>
     <div class="row">
         <div class="col">
             <table id="users" class="table table-striped table-bordered dt-responsive responsive-text" style="width:100%">
                 <thead>
                 <tr>
-                    <th>Username</th>
-                    <th>Account Type</th>
-                    <th>Role</th>
+                    <th>ID</th>
+                    <th>First Name</th>
+                    <th>Last Name</th>
+                    <th>Full Name</th>
+                    <th>Email</th>
+                    <th>Vanity Email</th>
                     <th>Phone Number</th>
+                    <th>Organization</th>
+                    <th>Affiliation</th>
+                    <th>IDP</th>
+                    <th>Roles</th>
                     <th>Actions</th>
                 </tr>
                 </thead>
@@ -27,252 +33,328 @@ include_once __DIR__ . '/../_header.php';
                 </tbody>
                 <tfoot>
                 <tr>
-                    <th>Username</th>
-                    <th>Account Type</th>
-                    <th>Role</th>
+                    <th>ID</th>
+                    <th>First Name</th>
+                    <th>Last Name</th>
+                    <th>Full Name</th>
+                    <th>Email</th>
+                    <th>Vanity Email</th>
                     <th>Phone Number</th>
+                    <th>Organization</th>
+                    <th>Affiliation</th>
+                    <th>IDP</th>
+                    <th>Roles</th>
                     <th>Actions</th>
                 </tr>
                 </tfoot>
             </table>
         </div>
     </div>
+
     <div class="modal fade" id="userModal" tabindex="-1" role="dialog" aria-labelledby="userModalLabel" aria-hidden="true">
         <div class="modal-dialog" role="document">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="userModalLabel">User Management</h5>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <div class="row">
-                        <div class="col-sm-12 mb-3 form-floating">
-
+                        <input type="hidden" id="user-id" value="" />
+                        <div class="col-md-12">
+                            <div class="input-group mb-3">
+                                <span class="input-group-text" id="user-email-label">Email</span>
+                                <input id="user-email" type="text" class="form-control" placeholder="abc123@uky.edu" aria-label="Email" aria-describedby="user-email">
+                            </div>
                         </div>
                     </div>
                     <div class="row">
-                        <input type="hidden" id="userModalUserId" value="" />
-                        <div class="col-sm-12 mb-3 form-floating">
-                            <input class="form-control" type="text" style="pointer-events: auto;" id="userModalLinkblue" placeholder="Username" />
-                            <label for="userModalLinkblue">Username</label>
+                        <div class="col-md-12">
+                            <div class="input-group mb-3">
+                                <label class="input-group-text" for="user-roles">Roles</label>
+                                <select id="user-roles" class="form-select" aria-label="Select User Role" title="Select User Role"></select>
+                            </div>
                         </div>
                     </div>
-                    <div class="row">
-                        <div id="password-fields" class="col-sm-12 mb-3 form-floating">
-                            <input class="form-control" type="password" style="pointer-events: auto;" id="userModalPassword" placeholder="Password" />
-                            <label for="userModalPassword">Password</label>
-                            <small>
-                                <p id="pass-info-text"></p>
-                                Password must:
-                                <ul>
-                                    <li>Be longer than 8 characters</li>
-                                    <li>Include a special character (!@#$%^&*)</li>
-                                    <li>Include a number</li>
-                                </ul>
-                            </small>
+                    <div class="study-admin-extras" style="display:none">
+                        <hr>
+                        <h6>Please enter your phone number and timezone to receive alerts about participants.</h6>
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="input-group mb-3">
+                                    <span class="input-group-text" id="user-number-label">Phone Number</span>
+                                    <input id="user-number" type="text" class="form-control" placeholder="5555555555" aria-label="Phone Number" aria-describedby="user-number">
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-sm-12 mb-3 form-floating">
-                            <select class="form-control" name="user-roles" id="user-roles">
-                                <option value="-1">-- Select Role --</option>
-                            </select>
-                            <label for="user-roles">Account Role:</label>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-sm-12 mb-3 form-floating" id="phone-number-fields">
-                            <input class="form-control" type="text" style="pointer-events: auto;" id="phone-number" placeholder="Phone Number" value="+1">
-                            <label for="phone-number">Phone Number</label>
-                            <small>Note: Please do not include hyphens or parentheses in the phone number.</small>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-sm-12 mb-3 form-floating">
-                            <select class="form-control" name="account-type" id="account-type">
-                                <option value="0">Linkblue</option>
-                                <option value="1">Non-Linkblue</option>
-                            </select>
-                            <label for="account-type">Account Type<label>
+                        <div class="row">
+                            <div class="col-md-6 form-floating">
+                                <select class="selectpicker form-control" title="Select Location" id="user-location" onchange="fillTimeZones()" data-live-search="true"></select>
+                            </div>
+                            <div class="col-md-6 form-floating">
+                                <select class="selectpicker form-control" title="Select Time Zone" id="user-timezone" data-live-search="true"></select>
+                            </div>
                         </div>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-                    <button type="button" class="btn btn-primary" onclick="submit_user();">Submit User</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" onclick="submit_user();">Submit</button>
                 </div>
             </div>
         </div>
     </div>
+
     <script type="text/javascript">
         var users_table = $('#users');
         var users_datatable = null;
-        var users = {}
-
+        var users = {};
         var userModal = $('#userModal');
-        var userModalUserId = $('#userModalUserId');
-        var userModalLinkblue = $('#userModalLinkblue');
-        var userModalPass = $('#userModalPassword');
-        var userModalAccountTypeOptions = $('#userModalAccountTypeOptions');
-        var userAccountType = $('#account-type');
-        var userRoles = $('#user-roles');
+        var roles = {};
 
-        $.ajax(
-            {
-                url: "/users/getRoles", 
-                success: 
-                function(result){
-                    $.each(result.roles, function(index){
-                        $('#user-roles').append('<option value="'+result.roles[index][0]+'">'+result.roles[index][1]+'</option>');
-                    });
-                }
-            }
-        );
-
-        function fill_user_form(user) {
-            if (user !== null) {
-                userModalUserId.val(user.id);
-                userModalLinkblue.val(user.linkblue);
-                $('#user-roles').val(user.role);
-                $('#user-roles').each(function(){
-                    $(this).removeAttr('hidden');
-                });
-                if (user.type == "Non-Linkblue"){
-                    $('#pass-info-text').html('Leave password blank to keep the same.');
-                }
-                if(user.type == "Non-Linkblue"){
-                    $('#account-type').val(1);
-                    $('#password-fields').show();
-                }
-                else{
-                    $('#account-type').val(0);
-                    $('#password-fields').hide();
-                }
-                if (user.role == 1){
-                    $('#phone-number-fields').show();
-                    $('#phone-number').val(user.phone_number);
-                }
-                else{
-                    $('#phone-number-fields').hide();
-                }
-            }
-        }
-
-        function edit_user(user_id, isRolesDisabled) {
-            fill_user_form(users[user_id]);
-            userModalLinkblue.attr('disabled', 'disabled');
-            if (isRolesDisabled) {
-                $('#user-roles').attr('disabled', 'disabled');
-            } else {
-                $('#user-roles').prop('disabled', false);
-            }
-            userModal.modal('show');
-        }
-
-        function delete_user(user_id) {
-            let isExecuted = confirm("Are you sure to delete this user? This action is irreversible.");
-            if (isExecuted) {
-                $.post({
-                    url: '/users/deleteUser',
-                    data: {'id': user_id},
-                    dataType: 'json'
-                }).done(function(data) {
-                    if (data.success) {
-                        showSuccess('Successfully removed user');
-                        users_datatable.ajax.reload( null, false );
-                        userModal.modal('hide');
-                    } else {
-                        showError(data.error_message);
+        $(function() {
+            users_datatable = users_table.DataTable({
+                serverSide: true,
+                processing: true,
+                ajax: {
+                    url: "<?= $rootURL ?>/users/list"
+                },
+                order: [[ 3, "asc" ]],
+                responsive: true,
+                buttons: [
+                    'pageLength','colvis'
+                ],
+                layout: {
+                    topStart: 'buttons',
+                },
+                columnDefs: [
+                    {
+                        className: "dt-center",
+                        targets: '_all'
+                    },
+                    {
+                        orderable: false,
+                        targets: [10]
+                    },
+                    {
+                        visible: false,
+                        targets: [0,1,2,5,8,9]
                     }
-                });
-            }
-        }
-
-        function clear_user_form() {
-            userModalUserId.val('');
-            userModalLinkblue.val('');
-            userModalLinkblue.attr('disabled', false);
-            $('#user-roles').prop('disabled', false);
-            userModalPass.val('');
-            $('#user-roles').val("-1");
-            $('#user-roles').each(function(){
-                $(this).attr('hidden');
+                ],
+                language: {
+                    emptyTable: "No users have been added."
+                },
+                pagingType: "full_numbers",
+                columns: [
+                    {
+                        data: 'id'
+                    },
+                    {
+                        data: 'firstname'
+                    },
+                    {
+                        data: 'lastname'
+                    },
+                    {
+                        data: null,
+                        render: function (data) {
+                            if (data.id.startsWith("notloggedin_")){
+                                return "Waiting for user to log in..."
+                            } else {
+                                return data.fullname;
+                            }
+                        }
+                    },
+                    {
+                        data: 'eppn'
+                    },
+                    {
+                        data: 'email'
+                    },
+                    {
+                        data: 'number'
+                    },
+                    {
+                        data: 'idpname'
+                    },
+                    {
+                        data: 'affiliation',
+                        render: function (data) {
+                            let html = "";
+                            if (data !== null) {
+                                let aff = data.split(';');
+                                for (let i = 0; i < aff.length; i++) {
+                                    if (i === aff.length - 1) {
+                                        html += aff[i];
+                                    } else {
+                                        html += aff[i] + '<br>';
+                                    }
+                                }
+                            }
+                            return html;
+                        }
+                    },
+                    {
+                        data: 'idp'
+                    },
+                    {
+                        data: null,
+                        render: function (data) {
+                            let html = "";
+                            const roles = JSON.parse(data.roles);
+                            for (const [roleId, roleName] of Object.entries(roles)) {
+                                html += `${roleName}<br>`;
+                            }
+                            return html;
+                        }
+                    },
+                    {
+                        data: null,
+                        render: function (data) {
+                            let html = "";
+                            if (data.id !== "<?php echo $user->getId(); ?>") {
+                                html +=`<button class='btn btn-primary btn-xs me-1' onclick='edit_user("${data.id}");'>
+                                            <span class='fas fa-user-edit' data-toggle='tooltip' data-placement='left' title='Edit User'></span>
+                                        </button>
+                                        <button class='btn btn-danger btn-xs me-1' onclick='delete_user("${data.id}");'>
+                                            <span class='fas fa-user-slash' data-toggle='tooltip' data-placement='left' title='Delete User'></span>
+                                        </button>`;
+                            }
+                            return html;
+                        }
+                    }
+                ]
             });
-            $('#pass-info-text').html('');
-            $('#account-type').val("0");
-            $('#password-fields').hide();
-            $('#phone-number').val("+1");
-            $('#phone-number-fields').hide();
-        }
 
-        userModal.on('hidden.bs.modal', function() {
-            clear_user_form();
+            $.ajax({
+                    url: "<?= $rootURL ?>/users/get-roles",
+                    type: "GET",
+                    success:
+                        function(result){
+                            $.each(result.roles, function(index){
+                                $('#user-roles').append('<option value="'+result.roles[index][0]+'">'+result.roles[index][1]+'</option>');
+                                roles[result.roles[index][0]] = result.roles[index][1];
+                            });
+                        }
+                }
+            );
+            $.ajax({
+                url : '<?= $rootURL?>/participants/fill-location-dropdown',
+                type : 'GET',
+
+                success : function(data) {
+                    $('#user-location').find('option').remove();
+                    data['data'].forEach(function(currentValue, index, arr){
+                        $('#user-location').append("<option value='"+currentValue+"'>"+ currentValue +"</option>");
+                    });
+                    $('#user-location').selectpicker('refresh');
+                },
+                error : function(request,error) {
+                    console.error(error);
+                    console.error(request);
+                }
+            });
         });
 
-        function submit_user() {
-            if (userModalLinkblue.val() === null || userModalLinkblue.val() === '') {
-                showError('You must supply a Linkblue or username.');
-                return;
-            }
-
-            let userRole = $('#user-roles').val();
-            if (userRole === "-1"){
-                showError('You must choose a user role');
-                return;
-            } 
-
-            let phoneNumber = $('#phone-number').val();
-            if (userRole == 1){
-                if(/[a-z]/i.test(phoneNumber)){
-                    showError("Phone number cannot contain letters.");
-                    return;
-                }
-
-                if (phoneNumber.indexOf("+") != 0){
-                    showError("Phone number must start with a \"+\"");
-                    return;
-                }
-
-                if (phoneNumber.indexOf("-") >= 0 || phoneNumber.indexOf("(") >= 0 || phoneNumber.indexOf(")") >= 0){
-                    showError("Phone number cannot contain hyphens or parentheses.");
-                    return;
-                }
+        $('#user-roles').on('change', function() {
+            if ($(this).val() === "2") {
+                $('.study-admin-extras').show();
             } else {
-                phoneNumber = "";
+                $('.study-admin-extras').hide();
             }
-            
+        });
 
-            let accountType = userAccountType.val();
-            let userPass = "";
-            if (accountType == 1){
-                userPass = userModalPass.val();
-                let regex = /^(?=.*[0-9])(?=.*[!@#$%^&*])[a-zA-Z0-9!@#$%^&*]{8,32}$/;
+        function fillTimeZones(selected) {
+            let location = $("#user-location").val();
+            $("#user-timezone").empty();
+            $.ajax({
+                url : '<?= $rootURL ?>/participants/fill-timezone-dropdown',
+                type : 'GET',
+                data: {
+                    'location': location
+                },
 
-                if (userPass.length !== 0){
-                    if(!userPass.match(regex)) { 
-                        showError('Password does not have 8 characters, a special character, or a number.');
-                        return;
-                    }
+                success : function(data) {
+                    let tzSelect = $('#user-timezone');
+                    tzSelect.selectpicker('destroy');
+                    data['data'].forEach(function(currentValue, index, arr){
+                        tzSelect.append(`<option value="${currentValue}">${currentValue}</option>`);
+                        if (selected === currentValue) {
+                            tzSelect.selectpicker('refresh');
+                            tzSelect.val(selected);
+                        }
+                    });
+                    tzSelect.selectpicker('refresh');
+                },
+                error : function(request,error) {
+                    console.error(error);
+                    console.error(request);
                 }
+            });
+        }
+
+        function submit_user() {
+            let user_id = $('#user-id').val();
+            if (user_id === ""){
+                user_id = null;
             }
-            var formData = {
-                'id': userModalUserId.val(),
-                'linkblue': userModalLinkblue.val(),
-                'role': userRole,
-                'pass': userPass,
-                'phone_number': phoneNumber,
-                'account_type': accountType,
+
+            let user_email = $('#user-email').val();
+            if (user_email === null || user_email === '') {
+                showError('Please enter email for user.');
+                return;
+            }
+
+            if (!validateEmail(user_email)) {
+                showError("Please enter a valid email.");
+                return;
+            }
+
+            let user_role = $('#user-roles').val();
+            if (user_role === null){
+                showError('Please choose this user\'s role.');
+                return;
+            }
+
+            let number = "";
+            let timezone = "";
+            if (user_role === "2") {
+                timezone = $('#user-timezone').val();
+                if (timezone === null) {
+                    showError('Please choose this user\'s timezone.');
+                    return;
+                }
+
+                number = $('#user-number').val();
+                if (number.length !== 10) {
+                    showError("Please enter a 10 digit phone number.");
+                    return false;
+                }
+
+                if(/[a-z]/i.test(number)){
+                    showError("Please enter a valid phone number.");
+                    return false;
+                }
+                number = '+1' + number;
+            }
+
+            let formData = {
+                'id': user_id,
+                'email': user_email,
+                'number': number,
+                'timezone': timezone,
+                'role': [user_role]
             };
-            $.post({
-                url: '/users/submit',
+
+            $.ajax({
+                url: '<?= $rootURL ?>/users/submit',
+                type: "POST",
                 data: formData,
                 dataType: 'json'
             }).done(function(data) {
                 if (data.success) {
-                    showSuccess('Successfully ' + data.action + ' user');
-                    users_datatable.ajax.reload( null, false );
+                    showSuccess('Successfully ' + data.action + 'd user.');
+                    users_datatable.ajax.reload();
                     userModal.modal('hide');
                 } else {
                     showError(data.error_message);
@@ -280,119 +362,73 @@ include_once __DIR__ . '/../_header.php';
             });
         }
 
-        $(function() {
-            clear_user_form();
-            users_datatable = users_table.DataTable({
-                serverSide: false,
-                ajax: {
-                    url: "/users/list"
-                },
-                order: [[ 0, "asc" ]],
-                responsive: true,
-                dom: 'Bfrtip',
-                buttons: [
-                    'pageLength', 'colvis'
-                ],
-                columnDefs: [
-                    {
-                        className: "dt-center",
-                        targets: [0, 1, 2, 3, 4]
-                    },
-                    {
-                        orderable: false,
-                        targets: [4]
+        function delete_user(user_id) {
+            let isExecuted = confirm("Are you sure to delete this user? This action is not reversible.");
+            if (isExecuted) {
+                $.post({
+                    url: '<?= $rootURL; ?>/users/delete',
+                    data: {'id': user_id},
+                    dataType: 'json'
+                }).done(function(data) {
+                    if (data.success) {
+                        showSuccess('Successfully deleted user.');
+                        users_datatable.ajax.reload( null, false );
+                    } else {
+                        showError(data.error_message);
                     }
-                ],
-                language: {
-                    emptyTable: "No users have been added"
-                },
-                pagingType: "full_numbers",
-                columns: [
-                    {
-                        data: 'linkblue'
-                    },
-                    {
-                        data: 'type'
-                    },
-                    {
-                        data: 'role',
-                        render: function ( data ) {
-                            if (data == 0) {
-                                return "Website Admin";
-                            } else if (data == 1) {
-                                return "Study Admin";
-                            }
-                            else {
-                                return "User";
-                            }
-                            
-                        }
-                    },
-                    {
-                        data: 'phone_number'
-                    },
-                    {
-                        data: null,
-                        render: function ( data ) {
-                            let isRolesDisabled = false;
-                            if(data.linkblue === "<?php echo $userSession->getUser()->getLinkblue(); ?>"){
-                                isRolesDisabled = true;
-                            }
-                            var html = "<button class='btn btn-primary btn-xs' onclick='edit_user(\"" + data.id + "\", "+isRolesDisabled+");'>" +
-                                    "<span class='fas fa-user-edit' data-toggle='tooltip' data-placement='left' title='Edit User'></span>" +
-                                    "</button>&nbsp;";
-                            if (data.linkblue !== "<?php echo $userSession->getUser()->getLinkblue(); ?>") {
-                                    html += "<button class='btn btn-danger btn-xs' onclick='delete_user(\"" + data.id + "\");'>" +
-                                    "<span class='fas fa-user-slash' data-toggle='tooltip' data-placement='left' title='Delete User'></span>" +
-                                    "</button>";
-                            }
-                            return html;
-                        }
-                    }
-                ],
-            });
-            users_datatable.buttons().container().prependTo('#users_filter');
-            users_datatable.buttons().container().addClass('float-left');
-            $('.dt-buttons').addClass('btn-group-sm');
-            $('.dt-buttons div').addClass('btn-group-sm');
-            users_table.on('xhr.dt', function (e, settings, data) {
-                users = {};
-                $.each(data.data, function(i, v) {
-                    users[v.id] = v;
                 });
-            });
+            }
+        }
+
+        function fill_user_form(user) {
+            if (user !== null) {
+                $('#user-id').val(user.id);
+                $('#user-email').val(user.eppn);
+
+                let usersRoles = JSON.parse(user.roles);
+                let selectedRoles = Object.keys(roles).filter(roleId => usersRoles.hasOwnProperty(roleId));
+                $('#user-roles').val(selectedRoles);
+
+                if (selectedRoles.includes("2")) {
+                    $('.study-admin-extras').show();
+                    $('#user-number').val((user.number && user.number !== "") ? user.number.slice(2) : "");
+                    $('#user-location').val(user.timezone.includes('/') ? user.timezone.split('/')[0] : user.timezone);
+                    $('#user-location').selectpicker('refresh');
+                    fillTimeZones(user.timezone);
+                } else {
+                    $('.study-admin-extras').hide();
+                }
+            }
+        }
+
+        function edit_user(user_id) {
+            let row_data = users_datatable.rows().data().filter(function(data, index){
+                return data['id'] === user_id;  // Assuming 'id' is the first column
+            }).toArray();
+            fill_user_form(row_data[0]);
+            userModal.modal('show');
+        }
+
+        function clear_user_form() {
+            $('#user-id').val('');
+            $('#user-email').val('');
+            $('#user-roles').val('1');
+            $('#user-number').val('');
+            $('#user-location').val('');
+            $('#user-location').selectpicker('refresh');
+            $('#user-timezone').val('');
+            $('#user-timezone').selectpicker('refresh');
+            $('.study-admin-extras').hide();
+        }
+
+        userModal.on('hidden.bs.modal', function() {
+            clear_user_form();
         });
 
-        userAccountType.change(function(){
-            if ($(this).val() == 0){
-                $('#password-fields').hide();
-            } else {
-                $('#password-fields').show();
-            }
-        });
-
-        userRoles.change(function(){
-            if ($(this).val() == 1){
-                $('#phone-number-fields').show();
-            } else {
-                $('#phone-number-fields').hide();
-            }
-        });
-
-        $(function(){
-            if (userAccountType.val() == 0){
-                $('#password-fields').hide();
-            } else {
-                $('#password-fields').show();
-            }
-            if (userRoles.val() == 1){
-                $('#phone-number-fields').show();
-            } else {
-                $('#phone-number-fields').hide();
-            }
-        });
-
-
+        function validateEmail(email) {
+            const emailPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+            return emailPattern.test(email);
+        }
     </script>
 <?php
 include_once __DIR__ . '/../_footer.php';

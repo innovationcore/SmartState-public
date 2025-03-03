@@ -5,9 +5,11 @@ import SmartState.Configs.FileConfig;
 import SmartState.Database.DBEngine;
 import SmartState.LoRaWAN.Listener;
 import SmartState.MessagingUtils.MsgUtils;
+import SmartState.Webapi.LlmConnector;
 import SmartState.Protocols.ReadGlucose.ReadGlucoseWatcher;
 import SmartState.Protocols.Survey.SurveyWatcher;
 import SmartState.Protocols.Testing;
+import SmartState.MessagingUtils.MessageSchedulerExecutor;
 import org.glassfish.grizzly.http.server.HttpServer;
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
@@ -27,6 +29,7 @@ public class Launcher {
     public static DBEngine dbEngine;
     public static String surveyURL;
     public static MsgUtils msgUtils;
+    public static LlmConnector llmConnector;
     public static ReadGlucoseWatcher readGlucoseWatcher;
     public static SurveyWatcher surveyWatcher;
     public static Testing testing;
@@ -51,8 +54,11 @@ public class Launcher {
             //init message utils
             msgUtils = new MsgUtils();
 
+            //init LLM connector
+            llmConnector = new LlmConnector();
+
             // init MQTT LoRaWAN listener
-            startListener();
+            //startListener();
 
             //Embedded HTTP initialization
             startServer();
@@ -60,6 +66,9 @@ public class Launcher {
             // start protocols
             readGlucoseWatcher = new ReadGlucoseWatcher();
             surveyWatcher = new SurveyWatcher();
+
+            // start watching the queued messages database
+            MessageSchedulerExecutor.startWatcher();
 
         } catch (Exception ex) {
             ex.printStackTrace();

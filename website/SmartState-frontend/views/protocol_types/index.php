@@ -5,7 +5,7 @@ include_once __DIR__ . '/../_header.php';
 ?>
     <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
         <h1 class="h4">Protocol Types - <span class="text-muted">Overview</span></h1>
-        <button type="button" class="btn btn-success" data-toggle="modal" data-target="#protocolModal">
+        <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#protocolModal">
             <i class="fas fa-plus"></i>
             Add Protocol
         </button>
@@ -37,21 +37,19 @@ include_once __DIR__ . '/../_header.php';
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="protocolModalLabel">Add Protocol</h5>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <div class="row">
                         <input type="hidden" id="protocolModalProtocolId" value="" />
-                        <div class="col-sm-12 mb-3 form-floating">
+                        <div class="col-sm-12 form-floating mb-3 ms-auto gx-1">
                             <input class="form-control" type="text" style="pointer-events: auto;" id="protocolModalName" placeholder="Name" autofocus/>
                             <label for="protocolModalName">Name</label>
                         </div>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                     <button id="update-button" type="button" class="btn btn-primary" onclick="submit_protocol();">Submit Protocol</button>
                 </div>
             </div>
@@ -69,7 +67,8 @@ include_once __DIR__ . '/../_header.php';
 
         $(function() {
             collectionDataTable = collectionTable.DataTable({
-                serverSide: false,
+                serverSide: true,
+                processing: true,
                 ajax: {
                     url: "/protocol-types/list"
                 },
@@ -160,8 +159,6 @@ include_once __DIR__ . '/../_header.php';
             });
         }
 
-        
-
         function edit_protocol(id) {
             protocolModalLabel.text('Edit Protocol');
             $('#update-button').text('Update Protocol');
@@ -237,7 +234,8 @@ include_once __DIR__ . '/../_header.php';
                     url: '/protocol-types/create',
                     type: 'POST',
                     data: {
-                        'name': name
+                        'name': name,
+                        'study': 'Default'
                     },
                     success: function(data) {
                         if (data.success) {

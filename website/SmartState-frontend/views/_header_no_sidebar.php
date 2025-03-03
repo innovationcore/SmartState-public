@@ -1,44 +1,39 @@
 <?php
 /** @var UserSession $userSession */
 /** @var string $page */
+global $rootURL;
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <link rel="shortcut icon" href="/favicon.ico" type="image/vnd.microsoft.icon" />
-    <meta property="og:title" content="Take Survey" />
-    <meta property="og:image" content="https://cdn-icons-png.flaticon.com/512/1312/1312304.png" />
-    <title>SmartState</title>
-    <script type="text/javascript" src="/js/jquery.min.js"></script>
-    <script type="text/javascript" src="/js/popper.min.js"></script>
-    <link type="text/css" rel="stylesheet" href="/css/bootstrap.min.css">
-    <link type="text/css" rel="stylesheet" href="/css/floating-labels.css">
-    <link type="text/css" rel="stylesheet" href="/css/dataTables.bootstrap4.min.css">
-    <link type="text/css" rel="stylesheet" href="/css/responsive.bootstrap4.min.css">
-    <link type="text/css" rel="stylesheet" href="/css/buttons.bootstrap4.min.css">
-    <link type="text/css" rel="stylesheet" href="/css/daterangepicker.css">
-    <link type="text/css" rel="stylesheet" href="/css/font-awesome.min.css">
-    <link type="text/css" rel="stylesheet" href="/css/toastify.min.css">
-    <link type="text/css" rel="stylesheet" href="/css/global.css">
-    <link type="text/css" rel="stylesheet" href="/css/bootstrap-select.css" />
-    <link type="text/css" rel="stylesheet" href="/css/chatbot.css" />
+    <link rel="apple-touch-icon" sizes="180x180" href="<?= $rootURL?>/img/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="<?= $rootURL?>/img/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="<?= $rootURL?>/img/favicon-16x16.png">
+    <link rel="manifest" href="<?= $rootURL?>/img/site.webmanifest">
+    <title>SmartState - Survey</title>
+    <link href="https://cdn.datatables.net/v/bs5/jszip-3.10.1/dt-2.1.4/af-2.7.0/b-3.1.1/b-colvis-3.1.1/b-html5-3.1.1/b-print-3.1.1/cr-2.0.4/date-1.5.3/fc-5.0.1/fh-4.0.1/kt-2.12.1/r-3.0.2/rg-1.5.0/rr-1.5.0/sc-2.4.3/sb-1.8.0/sp-2.3.2/sl-2.0.5/sr-1.4.1/datatables.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-daterangepicker/3.0.5/daterangepicker.css" integrity="sha512-gp+RQIipEa1X7Sq1vYXnuOW96C4704yI1n0YB9T/KqdvqaEgL6nAuTSrKufUX3VBONq/TPuKiXGLVgBKicZ0KA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css" integrity="sha512-Kc323vGBEqzTmouAECnVceyQqyqdsSiqLQISBL29aUW4U/M7pSPA/gEUZQqv1cwx4OnYxTxve5UMg5GT6L4JJg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastify-js/1.12.0/toastify.min.css" integrity="sha512-k+xZuzf4IaGQK9sSDjaNyrfwgxBfoF++7u6Q0ZVUs2rDczx9doNZkYXyyQbnJQcMR4o+IjvAcIj69hHxiOZEig==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.14.0-beta2/css/bootstrap-select.min.css" integrity="sha512-mR/b5Y7FRsKqrYZou7uysnOdCIJib/7r5QeJMFvLNHNhtye3xJp1TdJVPLtetkukFn227nKpXD9OjUc09lx97Q==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link type="text/css" rel="stylesheet" href="<?= $rootURL?>/css/global.css">
+    <link type="text/css" rel="stylesheet" href="<?= $rootURL?>/css/chatbot.css">
+    <!--    jQuery script must be in the header -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
 </head>
 <body>
-<nav class="navbar navbar-dark sticky-top navbar-expand-lg flex-md-nowrap p-0">
-    <a class="navbar-brand col-2 col-sm-2 col-md-2 mr-0" href="">SmartState<br>Automation</a>
-    <ul class="navbar-nav mr-auto">
-    </ul>
-<?php if (isset($userSession) && !is_null($userSession)) : ?>
-    <form class="form-inline my-2 my-lg-0 mr-2">
-<?php if (!is_null($userSession->getUser())) : ?>
-        <span class="responsive-text" id="login-user"><?php echo $userSession->getUser()->getLinkblue(); ?></span>
-<?php endif; ?>
-        <a class="btn btn-sm btn-primary my-2 my-sm-0 ml-2" href="/logout">Logout</a>
-    </form>
-<?php endif; ?>
+<nav class="navbar navbar-expand-lg sticky-top">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="<?= $rootURL ?>/">
+            <span class="brand-text">SmartState</span>
+            <img src="<?= $rootURL ?>/img/UKHCLogo.svg" />
+        </a>
+    </div>
 </nav>
+
 <div class="container-fluid">
     <div class="row">
-        <main role="main" class="col-md-12 bg-faded py-3 flex-grow-1">
+        <main role="main" class="col-md-12 bg-faded py-3">

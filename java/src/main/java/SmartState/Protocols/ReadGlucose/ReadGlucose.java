@@ -25,13 +25,15 @@ public class ReadGlucose extends ReadGlucoseBase {
     private final Map<String, String> participantMap;
     private final Map<String,Long> stateMap;
     private long startTimestamp;
-    private final TimezoneHelper TZHelper;
-    private boolean pauseMessages;
+    public final TimezoneHelper TZHelper;
+    private boolean isRestoring;
     public String stateJSON;
+    public ScheduledExecutorService uploadSave;
     private final Gson gson;
     private long startDeadline;
     private long startWarnDeadline;
     private long endOfEpisode;
+    private boolean isReset;
     private boolean hasStartedReading;
     private int glucoseCount;
 
@@ -43,11 +45,12 @@ public class ReadGlucose extends ReadGlucoseBase {
         this.gson = new Gson();
         this.participantMap = participantMap;
         this.stateMap = new HashMap<>();
-        this.pauseMessages = false;
+        this.isRestoring = false;
         this.startTimestamp = 0;
         this.startDeadline = 0;
         this.startWarnDeadline = 0;
         this.endOfEpisode = 0;
+        this.isReset = false;
         this.hasStartedReading = false;
         this.glucoseCount = 0;
         this.executor = Executors.newSingleThreadScheduledExecutor();
@@ -55,27 +58,31 @@ public class ReadGlucose extends ReadGlucoseBase {
         // this initializes the user's and machine's timezone
         this.TZHelper = new TimezoneHelper(participantMap.get("time_zone"), TimeZone.getDefault().getID());
 
-        new Thread(){
-            public void run(){
-                try {
-                    while (!getState().toString().equals("endOfEpisode")) {
+        this.uploadSave = Executors.newScheduledThreadPool(1);
+        //set timer
+        this.uploadSave.scheduleAtFixedRate(() -> {
+            try {
+                if (!getState().toString().equals("endProtocol")) {
 
-                        if(startTimestamp > 0) {
-                            stateJSON = saveStateJSON();
-                            Launcher.dbEngine.uploadSaveState(stateJSON, "ReadGlucose", participantMap.get("participant_uuid"));
+                    if(startTimestamp > 0) {
+                        stateJSON = saveStateJSON();
+                        boolean didUpload = Launcher.dbEngine.uploadSaveState(stateJSON, participantMap.get("participant_uuid"), "ReadGlucose");
+                        if(!didUpload){
+                            logger.error("saveState failed to upload for participant: " + participantMap.get("participant_uuid"));
                         }
-
-                        Thread.sleep(1000);
                     }
-                } catch (Exception ex) {
-                    logger.error("protocols.ReadGlucose Thread: " + ex);
-                    StringWriter sw = new StringWriter();
-                    PrintWriter pw = new PrintWriter(sw);
-                    ex.printStackTrace(pw);
-                    logger.error(pw.toString());
+
+                    String currentTimezone = Launcher.dbEngine.getParticipantTimezone(participantMap.get("participant_uuid"));
+                    if (!participantMap.get("time_zone").equals(currentTimezone) && !currentTimezone.equals("")){
+                        participantMap.put("time_zone", currentTimezone);
+                        TZHelper.setUserTimezone(currentTimezone);
+                    }
                 }
+            } catch (Exception ex) {
+                logger.error("protocols.Baseline Thread");
+                logger.error(ex.getMessage());
             }
-        }.start();
+        }, 30, 900, TimeUnit.SECONDS); //900 sec is 15 mins
 
     }
 
@@ -85,9 +92,9 @@ public class ReadGlucose extends ReadGlucoseBase {
             ArrayList<String> adminNumbers = Launcher.dbEngine.getAdminNumbers();
             // for each admin number, send a message
             for (String number : adminNumbers) {
-                Launcher.msgUtils.sendMessage(number, "ReadGlucose: Participant " + participantMap.get("first_name") + " " + participantMap.get("last_name") +" ("+participantMap.get("number")+") is in need of help!");
+                Launcher.msgUtils.sendMessage(number, "ReadGlucose: A participant is in need of help!", "ADMIN");
             }
-            Launcher.msgUtils.sendMessage(participantMap.get("number"), "We've notified study administrators that you need help. Someone will be contacting you soon.");
+            Launcher.msgUtils.sendMessage(participantMap.get("number"), "We've notified study administrators that you need help. Someone will be contacting you soon.", "Default");
         }
     }
 
@@ -175,7 +182,6 @@ public class ReadGlucose extends ReadGlucoseBase {
             stateJSON = saveStateJSON();
         }
 
-
         switch (State.valueOf(state)) {
             case initial:
                 //no timers
@@ -191,10 +197,12 @@ public class ReadGlucose extends ReadGlucoseBase {
                 }
                 setStartDeadline(startWaitDiff);
                 String waitStartMessage = "Hi "+ participantMap.get("first_name") + ", it's time to check you blood glucose level. Please interact with you blood glucose device to start sending readings.";
-                if(!this.pauseMessages) {
-                    Launcher.msgUtils.sendMessage(participantMap.get("number"), waitStartMessage);
+                if(!this.isRestoring) {
+                    Launcher.msgUtils.sendMessage(participantMap.get("number"), waitStartMessage, "Default");
                 }
-                logger.warn(waitStartMessage);
+                logger.warn("in waitStart: startDeadline -> " + TZHelper.getDateFromAddingSeconds(startWaitDiff));
+                stateJSON = saveStateJSON();
+                Launcher.dbEngine.uploadSaveState(stateJSON, participantMap.get("participant_uuid"), "ReadGlucose");
                 break;
             case warnStartGlucose:
                 int startWarnDiff;
@@ -206,33 +214,41 @@ public class ReadGlucose extends ReadGlucoseBase {
                 }
                 setStartWarnDeadline(startWarnDiff);
                 String warnStartMessage = "We haven't started receiving your glucose measurements yet. Please interact with you blood glucose device to start sending readings. If you need help, please respond with \"help me\".";
-                if(!this.pauseMessages) {
-                    Launcher.msgUtils.sendMessage(participantMap.get("number"), warnStartMessage);
+                if(!this.isRestoring) {
+                    Launcher.msgUtils.sendMessage(participantMap.get("number"), warnStartMessage, "Default");
                 }
-                logger.warn(warnStartMessage);
+                logger.warn("in warnStart: startWarnDeadline -> " + TZHelper.getDateFromAddingSeconds(startWarnDiff));
+                stateJSON = saveStateJSON();
+                Launcher.dbEngine.uploadSaveState(stateJSON, participantMap.get("participant_uuid"), "ReadGlucose");
                 break;
             case startReading:
                 String startReadingMessage = "Your glucose readings are being received. We'll let you know your results momentarily.";
-                if(!this.pauseMessages) {
-                    Launcher.msgUtils.sendMessage(participantMap.get("number"), startReadingMessage);
+                if(!this.isRestoring) {
+                    Launcher.msgUtils.sendMessage(participantMap.get("number"), startReadingMessage, "Default");
                 }
-                logger.warn(startReadingMessage);
+                logger.warn("in startReading: startReadingMessage -> " + startReadingMessage);
+                stateJSON = saveStateJSON();
+                Launcher.dbEngine.uploadSaveState(stateJSON, participantMap.get("participant_uuid"), "ReadGlucose");
                 break;
             case missedStart:
-                String missedStartReadingMessage = participantMap.get("first_name") + ", we haven't started receiving your glucose readings. We will notify a study administrator to assist you.";
-                if(!this.pauseMessages) {
-                    Launcher.msgUtils.sendMessage(participantMap.get("number"), missedStartReadingMessage);
+                String missedStartReadingMessage = participantMap.get("first_name") + ", we haven't started receiving your glucose readings. We will notify an administrator to assist you.";
+                if(!this.isRestoring) {
+                    Launcher.msgUtils.sendMessage(participantMap.get("number"), missedStartReadingMessage, "Default");
                 }
-                logger.warn(missedStartReadingMessage);
+                logger.warn("in missedStart: missedStartReadingMessage -> " + missedStartReadingMessage);
+                stateJSON = saveStateJSON();
+                Launcher.dbEngine.uploadSaveState(stateJSON, participantMap.get("participant_uuid"), "ReadGlucose");
                 break;
             case notifyAdmin:
-                String notifyAdminMessage = "Participant " + participantMap.get("first_name") + " " + participantMap.get("last_name") +" ("+participantMap.get("number")+") did not successfully interact with their glucose measurement device within the 30 minute time window or an error occurred. They may require help.";
+                String notifyAdminMessage = "A participant did not successfully interact with their glucose measurement device within the 30 minute time window or an error occurred. They may require help.";
                 ArrayList<String> adminNumbers = Launcher.dbEngine.getAdminNumbers();
                 // for each admin number, send a message
                 for (String number : adminNumbers) {
-                    Launcher.msgUtils.sendMessage(number, notifyAdminMessage);
+                    Launcher.msgUtils.sendMessage(number, notifyAdminMessage, "ADMIN");
                 }
-                logger.info("notifyAdmin");
+                logger.info("in notifyAdmin: notifyAdminMessage -> " + notifyAdminMessage);
+                stateJSON = saveStateJSON();
+                Launcher.dbEngine.uploadSaveState(stateJSON, participantMap.get("participant_uuid"), "ReadGlucose");
                 break;
             case finishedReading:
                 // reset vars and cancel executor
@@ -252,10 +268,12 @@ public class ReadGlucose extends ReadGlucoseBase {
                 else if (result.equals("normal")) {
                     finishedReadingMessage = "All finished. Your blood glucose is normal. Keep up the good work!";
                 }
-                if(!this.pauseMessages && !finishedReadingMessage.equals("")) {
-                    Launcher.msgUtils.sendMessage(participantMap.get("number"), finishedReadingMessage);
+                if(!this.isRestoring && !finishedReadingMessage.equals("")) {
+                    Launcher.msgUtils.sendMessage(participantMap.get("number"), finishedReadingMessage, "Default");
                 }
-                logger.info(finishedReadingMessage);
+                logger.info("in finishedReading: finishedReadingMessage -> " + finishedReadingMessage);
+                stateJSON = saveStateJSON();
+                Launcher.dbEngine.uploadSaveState(stateJSON, participantMap.get("participant_uuid"), "ReadGlucose");
                 break;
             case endOfEpisode:
                 int secondsTo2Hours = (int) TZHelper.getSecondsUntil2Hours();
@@ -263,10 +281,14 @@ public class ReadGlucose extends ReadGlucoseBase {
                     secondsTo2Hours = 0;
                 }
                 setEndOfEpisodeDeadline(secondsTo2Hours);
-                logger.info("endOfEpisode: restart at:" + TZHelper.getDateFromAddingSeconds(secondsTo2Hours));
+                logger.info("in endOfEpisode: endOfEpisodeDeadline:" + TZHelper.getDateFromAddingSeconds(secondsTo2Hours));
+                stateJSON = saveStateJSON();
+                Launcher.dbEngine.uploadSaveState(stateJSON, participantMap.get("participant_uuid"), "ReadGlucose");
                 break;
             case endReadGlucoseProtocol:
                 logger.warn(participantMap.get("participant_uuid") + " is not longer in ReadGlucose protocol.");
+                stateJSON = saveStateJSON();
+                Launcher.dbEngine.uploadSaveState(stateJSON, participantMap.get("participant_uuid"), "ReadGlucose");
                 break;
             default:
                 logger.error("stateNotify: Invalid state: " + state);
@@ -293,7 +315,6 @@ public class ReadGlucose extends ReadGlucoseBase {
     public String saveStateJSON() {
         String stateJSON = null;
         try {
-
             Map<String,Long> timerMap = new HashMap<>();
             timerMap.put("stateIndex", (long) getState().ordinal());
             timerMap.put("startTime", startTimestamp);
@@ -308,7 +329,6 @@ public class ReadGlucose extends ReadGlucoseBase {
 
             stateJSON = gson.toJson(stateSaveMap);
 
-
         } catch (Exception ex) {
             logger.error("saveStateJSON: " + ex.getMessage());
             StringWriter sw = new StringWriter();
@@ -320,77 +340,80 @@ public class ReadGlucose extends ReadGlucoseBase {
         return stateJSON;
     }
 
-    public void restoreSaveState() {
+    public void restoreSaveState(boolean isReset) {
         try{
             String saveStateJSON = Launcher.dbEngine.getSaveState(participantMap.get("participant_uuid"), "ReadGlucose");
 
-            if (!saveStateJSON.equals("")){
-                Map<String, Map<String,Long>> saveStateMap = gson.fromJson(saveStateJSON,typeOfHashMap);
-
-                Map<String,Long> historyMap = saveStateMap.get("history");
-                Map<String,Long> timerMap = saveStateMap.get("timers");
-
-                int stateIndex = (int) timerMap.get("stateIndex").longValue();
-                String stateName = State.values()[stateIndex].toString();
-                long startTime = timerMap.get("startTime");
-                long saveCurrentTime = timerMap.get("currentTime");
-                this.startDeadline = timerMap.get("startDeadline");
-                this.startWarnDeadline = timerMap.get("startWarnDeadline");
-                this.endOfEpisode = timerMap.get("endOfEpisodeDeadline");
-
-                boolean isSameDay = TZHelper.isSameDay(saveCurrentTime);
-                if (!isSameDay) {
-                    // if state is endReadGlucoseProtocol, do not restart cycle
-                    if (!stateName.equals("endReadGlucoseProtocol")) {
-                        stateName = "waitStart";
-                    }
-                }
-
-                switch (State.valueOf(stateName)) {
-                    case initial:
-                    case missedStart:
-                    case notifyAdmin:
-                    case finishedReading:
-                    case endReadGlucoseProtocol:
-                        //no timers
-                        break;
-                    case waitStart:
-                        //resetting wait timer
-                        this.pauseMessages = true;
-                        receivedWaitStart(); // initial to waitStart
-                        this.pauseMessages = false;
-                        break;
-                    case warnStartGlucose:
-                        //resetting warn timer
-                        this.pauseMessages = true;
-                        receivedWarnStart(); // initial to waitStart
-                        this.pauseMessages = false;
-                        break;
-                    case startReading:
-                        this.pauseMessages = true;
-                        receivedWaitStart();
-                        receivedStartGlucose();
-                        this.pauseMessages = false;
-                        receivedError(); // was in the middle of a reading when failed, so error and notify admin
-                        break;
-                    case endOfEpisode:
-                        // reset endOfEpisodeDeadline
-                        // the quickest path to endOfEpisode, move it but don't save it
-                        this.pauseMessages = true;
-                        receivedWaitStart();
-                        receivedStartGlucose();
-                        receivedEndConnection();
-                        this.pauseMessages = false;
-                        break;
-                    default:
-                        logger.error("restoreSaveState: Invalid state: " + stateName);
-                }
-            }
-            else {
-                logger.info("restoreSaveState: no save state found for " + participantMap.get("participant_uuid"));
+            if (isReset) {
+                this.isReset = true;
+                logger.info("restoreSaveState: resetting participant: " + participantMap.get("participant_uuid"));
                 receivedWaitStart(); // initial to waitStart
-            }
+                this.isReset = false;
+            } else {
 
+                if (!saveStateJSON.equals("")) {
+                    Map<String, Map<String, Long>> saveStateMap = gson.fromJson(saveStateJSON, typeOfHashMap);
+
+                    Map<String, Long> historyMap = saveStateMap.get("history");
+                    Map<String, Long> timerMap = saveStateMap.get("timers");
+
+                    int stateIndex = (int) timerMap.get("stateIndex").longValue();
+                    String stateName = State.values()[stateIndex].toString();
+                    long startTime = timerMap.get("startTime");
+                    long saveCurrentTime = timerMap.get("currentTime");
+                    this.startDeadline = timerMap.get("startDeadline");
+                    this.startWarnDeadline = timerMap.get("startWarnDeadline");
+                    this.endOfEpisode = timerMap.get("endOfEpisodeDeadline");
+
+                    boolean isSameDay = TZHelper.isSameDay(saveCurrentTime);
+                    if (!isSameDay) {
+                        // if state is endReadGlucoseProtocol, do not restart cycle
+                        if (!stateName.equals("endReadGlucoseProtocol")) {
+                            stateName = "waitStart";
+                        }
+                    }
+
+                    switch (State.valueOf(stateName)) {
+                        case initial:
+                        case missedStart:
+                        case notifyAdmin:
+                        case finishedReading:
+                        case endReadGlucoseProtocol:
+                            //no timers
+                            break;
+                        case waitStart:
+                            //resetting wait timer
+                            this.isRestoring = true;
+                            receivedWaitStart(); // initial to waitStart
+                            this.isRestoring = false;
+                            break;
+                        case warnStartGlucose:
+                            //resetting warn timer
+                            this.isRestoring = true;
+                            receivedWarnStart(); // initial to waitStart
+                            this.isRestoring = false;
+                            break;
+                        case startReading:
+                            this.isRestoring = true;
+                            receivedStartGlucose();
+                            this.isRestoring = false;
+                            receivedError(); // was in the middle of a reading when failed, so error and notify admin
+                            break;
+                        case endOfEpisode:
+                            // reset endOfEpisodeDeadline
+                            // the quickest path to endOfEpisode, move it but don't save it
+                            this.isRestoring = true;
+                            receivedEndofEpisode();
+                            this.isRestoring = false;
+                            break;
+                        default:
+                            logger.error("restoreSaveState: Invalid state: " + stateName);
+                    }
+                } else {
+                    logger.info("restoreSaveState: no save state found for " + participantMap.get("participant_uuid"));
+                    receivedWaitStart(); // initial to waitStart
+                }
+            }
         } catch (Exception ex) {
             logger.error("restoreSaveState");
             logger.error(ex.getMessage());
@@ -402,16 +425,20 @@ public class ReadGlucose extends ReadGlucoseBase {
         if(gson != null) {
             Map<String,String> messageMap = new HashMap<>();
             messageMap.put("state",state);
-            if (this.pauseMessages) {
+            if (this.isRestoring) {
                 messageMap.put("restored","true");
             }
+            if (this.isReset) {
+                messageMap.put("RESET", "true");
+            }
+
             messageMap.put("protocol", "ReadGlucose");
             String json_string = gson.toJson(messageMap);
 
             String insertQuery = "INSERT INTO state_log " +
-                    "(participant_uuid, TS, log_json)" +
+                    "(participant_uuid, ts, log_json)" +
                     " VALUES ('" + participantMap.get("participant_uuid") + "', " +
-                    "GETUTCDATE(), '" + json_string +
+                    "NOW(), '" + json_string +
                     "')";
 
             Launcher.dbEngine.executeUpdate(insertQuery);
@@ -419,8 +446,7 @@ public class ReadGlucose extends ReadGlucoseBase {
     }
 
     private class GlucoseTimer implements Runnable {
-        public void run()
-        {
+        public void run() {
             // save glucoseCount results
             saveGlucoseResults();
             receivedEndConnection();

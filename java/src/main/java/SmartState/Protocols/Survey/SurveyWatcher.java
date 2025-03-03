@@ -90,7 +90,28 @@ public class SurveyWatcher {
         return validNextStates;
     }
 
-    public String moveToState(String participantId, String moveToState) {
+    public void resetStateMachine(String participantId){
+        synchronized (lockSurvey) {
+            // Remove participant from protocol
+            Survey removed = surveyMap.remove(participantId);
+            if (removed != null) {
+                removed.receivedEndProtocol();
+                removed.uploadSave.shutdownNow();
+                System.gc();
+            }
+
+            //restart at beginning
+            List<Map<String,String>> participantMapList = Launcher.dbEngine.getParticipantMapByGroup("Default", "Survey");
+            //Create person
+            Map<String, String> addMap = getHashMapByParticipantUUID(participantMapList, participantId);
+            Survey p0 = new Survey(addMap);
+
+            p0.restoreSaveState(true);
+            surveyMap.put(participantId, p0);
+        }
+    }
+
+    public String moveToState(String participantId, String moveToState, String time) {
         String newState = "";
         try {
             Survey participant = surveyMap.get(participantId);
@@ -165,6 +186,18 @@ public class SurveyWatcher {
         return newState;
     }
 
+    public void updateTimeZone(String participantId, String tz) {
+        synchronized (lockSurvey) {
+            Survey toUpdate = surveyMap.get(participantId);
+            if (toUpdate == null) {
+                logger.warn("Cannot update timezone, participant not in study.");
+            } else {
+                logger.warn(participantId + ": changed TZ from " + toUpdate.TZHelper.getUserTimezone() + " to " + tz);
+                toUpdate.TZHelper.setUserTimezone(tz);
+            }
+        }
+    }
+
     class startSurvey extends TimerTask {
         private final Logger logger;
         private List<Map<String,String>> previousMapList;
@@ -175,7 +208,7 @@ public class SurveyWatcher {
         public void run() {
             try {
                synchronized (lockEpisodeReset) {
-                   List<Map<String,String>> participantMapList = Launcher.dbEngine.getParticipantMapByGroup("Survey");
+                   List<Map<String,String>> participantMapList = Launcher.dbEngine.getParticipantMapByGroup("Default", "Survey");
                    if (previousMapList == null){
                         //first run
                         previousMapList = participantMapList;
@@ -222,7 +255,7 @@ public class SurveyWatcher {
                            Survey p0 = new Survey(participantMap);
 
                            logger.info("Restoring State for participant_uuid=" + participantMap.get("participant_uuid"));
-                           p0.restoreSaveState();
+                           p0.restoreSaveState(false);
 
                            synchronized (lockSurvey) {
                                surveyMap.put(participantMap.get("participant_uuid"), p0);
@@ -244,6 +277,15 @@ public class SurveyWatcher {
 
         }
 
+    }
+
+    public Map<String, String> getHashMapByParticipantUUID(List<Map<String, String>> list, String participantUUID) {
+        for (Map<String, String> map : list) {
+            if (map.containsKey("participant_uuid") && map.get("participant_uuid").equals(participantUUID)) {
+                return map;
+            }
+        }
+        return new HashMap<>();
     }
 
 } //class

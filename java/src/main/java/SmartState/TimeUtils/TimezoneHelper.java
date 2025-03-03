@@ -3,13 +3,18 @@ package SmartState.TimeUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
+import java.util.Date;
+import java.util.TimeZone;
 
 public class TimezoneHelper {
     final int SEC_IN_DAY = 86400;
-    private final String userTimezone;
-    private final String machineTimezone;
+    private String userTimezone;
+    private String machineTimezone;
+    private Integer timezoneDifference;
 
     /**
     * initialize the timezone helper with the user's timezone and the machine's timezone (in seconds)
@@ -17,8 +22,7 @@ public class TimezoneHelper {
     public TimezoneHelper(String userTimezone, String machineTimezone) {
         this.userTimezone = userTimezone;
         this.machineTimezone = machineTimezone;
-
-        Integer timezoneDifference = calculateTZOffset();
+        this.timezoneDifference = calculateTZOffset();
         Logger logger = LoggerFactory.getLogger(TimezoneHelper.class.getName());
         logger.info("TimezoneHelper initialized with user timezone: " + userTimezone + " and machine timezone: " + machineTimezone + " and timezone difference: " + timezoneDifference);
     }
@@ -28,12 +32,24 @@ public class TimezoneHelper {
     * - if behind, + if ahead
     */
     public Integer calculateTZOffset() {
+        String timeZone1 = this.userTimezone;
+        String timeZone2 = this.machineTimezone;
 
         LocalDateTime dt = LocalDateTime.now();
-		ZonedDateTime fromZonedDateTime = dt.atZone(ZoneId.of(this.userTimezone));
-		ZonedDateTime toZonedDateTime = dt.atZone(ZoneId.of(this.machineTimezone));
-		long diff = Duration.between(fromZonedDateTime, toZonedDateTime).getSeconds();
+        ZonedDateTime fromZonedDateTime = dt.atZone(ZoneId.of(timeZone1));
+        ZonedDateTime toZonedDateTime = dt.atZone(ZoneId.of(timeZone2));
+        long diff = Duration.between(fromZonedDateTime, toZonedDateTime).getSeconds();
         return (int) (diff);
+    }
+
+    /**
+     * returns a user's local time as String
+     */
+    public String getUserLocalTime() {
+        Date date = new Date();
+        DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss z");
+        df.setTimeZone(TimeZone.getTimeZone(this.userTimezone));
+        return df.format(date);
     }
 
     /**
@@ -184,6 +200,48 @@ public class TimezoneHelper {
     public boolean isBefore6pm() {
         int timeTo6pm = getSecondsTo6pm();
         return timeTo6pm > 0;
+    }
+
+    /**
+     * gets the user's timezone
+     */
+    public String getUserTimezone() {
+        return this.userTimezone;
+    }
+
+    /**
+     * gets the machine's timezone
+     */
+    public String getMachineTimezone() {
+        return this.machineTimezone;
+    }
+
+    /**
+     * gets the timezoneDifference
+     */
+    public int getTimezoneDifference() {
+        return this.timezoneDifference;
+    }
+
+    /**
+     * sets the userTimezone(String)
+     */
+    public void setUserTimezone(String userTimezone) {
+        this.userTimezone = userTimezone;
+    }
+
+    /**
+     * sets the machineTimezone(String)
+     */
+    public void setMachineTimezone(String machineTimezone) {
+        this.machineTimezone = machineTimezone;
+    }
+
+    /**
+     * sets the timezoneDifference(int)
+     */
+    public void setTimezoneDifference(int timezoneDifference) {
+        this.timezoneDifference = timezoneDifference;
     }
 
 }

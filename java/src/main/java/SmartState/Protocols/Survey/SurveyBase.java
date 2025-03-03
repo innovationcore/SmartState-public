@@ -2,16 +2,13 @@ package SmartState.Protocols.Survey;
 //%% NEW FILE SurveyBase BEGINS HERE %%
 
 /*PLEASE DO NOT EDIT THIS CODE*/
-/*This code was generated using the UMPLE 1.32.0.6441.414d09714 modeling language!*/
+/*This code was generated using the UMPLE 1.35.0.7523.c616a4dce modeling language!*/
 
 
 import java.util.*;
 
-/**
- * UML State diagram for a library loan, represented in Umple
- */
-// line 3 "model.ump"
-// line 68 "model.ump"
+// line 2 "model.ump"
+// line 62 "model.ump"
 public class SurveyBase
 {
 
@@ -86,7 +83,7 @@ public class SurveyBase
   public boolean isBeforeNoon()
   {
     boolean wasEventProcessed = false;
-    
+
     State aState = state;
     switch (aState)
     {
@@ -104,7 +101,7 @@ public class SurveyBase
   public boolean isBefore6pm()
   {
     boolean wasEventProcessed = false;
-    
+
     State aState = state;
     switch (aState)
     {
@@ -122,7 +119,7 @@ public class SurveyBase
   public boolean receivedEndProtocol()
   {
     boolean wasEventProcessed = false;
-    
+
     State aState = state;
     switch (aState)
     {
@@ -147,10 +144,10 @@ public class SurveyBase
     return wasEventProcessed;
   }
 
-  private boolean __autotransition14759__()
+  private boolean __autotransition4449__()
   {
     boolean wasEventProcessed = false;
-    
+
     State aState = state;
     switch (aState)
     {
@@ -168,7 +165,7 @@ public class SurveyBase
   public boolean timeoutwaitFor6pmTosurvey6pm()
   {
     boolean wasEventProcessed = false;
-    
+
     State aState = state;
     switch (aState)
     {
@@ -184,10 +181,10 @@ public class SurveyBase
     return wasEventProcessed;
   }
 
-  private boolean __autotransition14760__()
+  private boolean __autotransition4450__()
   {
     boolean wasEventProcessed = false;
-    
+
     State aState = state;
     switch (aState)
     {
@@ -205,7 +202,7 @@ public class SurveyBase
   public boolean timeoutwaitForNoonTonoonSurvey()
   {
     boolean wasEventProcessed = false;
-    
+
     State aState = state;
     switch (aState)
     {
@@ -242,31 +239,31 @@ public class SurveyBase
     switch(state)
     {
       case initial:
-        // line 13 "model.ump"
+        // line 8 "model.ump"
         stateNotify("initial");
         break;
       case noonSurvey:
-        // line 23 "model.ump"
+        // line 18 "model.ump"
         stateNotify("noonSurvey");
-        __autotransition14759__();
+        __autotransition4449__();
         break;
       case waitFor6pm:
-        // line 30 "model.ump"
+        // line 25 "model.ump"
         stateNotify("waitFor6pm");
         startTimeoutwaitFor6pmTosurvey6pmHandler();
         break;
       case survey6pm:
-        // line 40 "model.ump"
+        // line 35 "model.ump"
         stateNotify("survey6pm");
-        __autotransition14760__();
+        __autotransition4450__();
         break;
       case waitForNoon:
-        // line 46 "model.ump"
+        // line 41 "model.ump"
         stateNotify("waitForNoon");
         startTimeoutwaitForNoonTonoonSurveyHandler();
         break;
       case endSurveyProtocol:
-        // line 55 "model.ump"
+        // line 50 "model.ump"
         stateNotify("endSurveyProtocol");
         break;
     }
@@ -292,13 +289,13 @@ public class SurveyBase
     timeoutwaitForNoonTonoonSurveyHandler.stop();
   }
 
-  public static class TimedEventHandler extends TimerTask  
+  public static class TimedEventHandler extends TimerTask
   {
     private SurveyBase controller;
     private String timeoutMethodName;
     private double howLongInSeconds;
     private Timer timer;
-    
+
     public TimedEventHandler(SurveyBase aController, String aTimeoutMethodName, double aHowLongInSeconds)
     {
       controller = aController;
@@ -307,12 +304,12 @@ public class SurveyBase
       timer = new Timer();
       timer.schedule(this, (long)howLongInSeconds*1000);
     }
-    
+
     public void stop()
     {
       timer.cancel();
     }
-    
+
     public void run ()
     {
       if ("timeoutwaitFor6pmTosurvey6pm".equals(timeoutMethodName))
@@ -339,14 +336,9 @@ public class SurveyBase
   public void delete()
   {}
 
-  // line 62 "model.ump"
+  // line 57 "model.ump"
   public boolean stateNotify(String node){
     return true;
-  }
-
-  // line 63 "model.ump"
-  public int currentTime(){
-    return 1;
   }
 
 

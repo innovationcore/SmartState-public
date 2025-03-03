@@ -12,7 +12,7 @@ include_once __DIR__ . '/../_header_no_sidebar.php';
             <br>
             <h4 class="text-center">Please contact the study administrator if you believe this is an error.</h4>
             <br>
-            <p class="text-center"><a href="tel:18005555555" class="btn btn-primary"><i class="fa fa-phone"> 1-800-555-5555</i></a></p>
+            <p class="text-center"><a href="tel:18005555555" class="btn btn-primary"><i class="fa fa-phone"></i> 1-800-555-5555</a></p>
             
         </div>
     </div>

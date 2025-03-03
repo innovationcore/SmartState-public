@@ -10,12 +10,11 @@ include_once __DIR__ . '/../_header.php';
     <div class="row">
         <div class="col-md-6 mb-3 form-floating">
             <div class="btn-group btn-group-toggle" data-toggle="buttons">
-                <select class="selectpicker" data-width="fit" id="select-participant-message" data-none-selected-text="Select Participant" data-live-search="true" data-live-search-placeholder="Search">
-                </select>
+                <select class="selectpicker" data-width="fit" id="select-participant-message" data-none-selected-text="Select Participant" data-live-search="true" data-live-search-placeholder="Search"></select>
             </div>
         </div>
-        <div class="col-md-6 mb-3 form-floating">
-            <h5 id="time-zone" class="text-right"></h5>
+        <div class="col-md-6 mb-3">
+            <h5 id="time-zone" class="float-end"></h5>
         </div>
     </div>
 
@@ -55,30 +54,33 @@ include_once __DIR__ . '/../_header.php';
             let uuid = $('#select-participant-message').val();
 
             collectionDataTable = $('#collection').DataTable({
-                serverSide: false,
+                destroy: true,
+                serverSide: true,
+                processing: true,
                 ajax: {
                     url: "/messages/get-message-log",
-                    type: "POST",
-                    data: {'uuid': uuid}
+                    type: "GET",
+                    data: {
+                        'uuid': uuid
+                    },
                 },
                 order: [[ 2, "desc" ]],
                 responsive: true,
-                dom: 'Bfrtip',
                 buttons: [
-                    'pageLength', 'colvis'
+                    'pageLength','colvis', 'csv'
                 ],
+                layout: {
+                    topStart: 'buttons',
+                },
                 columnDefs: [
                     {
                         className: "dt-center",
-                        targets: [0,1,2]
+                        targets: '_all'
                     },
                     {
-                        orderable: true,
-                        targets: [0,1,2]
-                    },
-                    {
-                        targets: 2,
-                        type: "date"
+                        type: 'date',
+                        targets: [2]
+
                     },
                 ],
                 language: {
@@ -93,24 +95,14 @@ include_once __DIR__ . '/../_header.php';
                         data: null,
                         render: function (data) {
                             let body_json = JSON.parse(data.json);
-                            let body = body_json.Body;
-                            return body;
+                            return body_json.Body;
                         } 
                     },
                     {
-                        data: 'TS',
+                        data: 'ts',
+                        className: 'text-center'
                     }
-                ]
-            });
-            collectionDataTable.buttons().container().prependTo('#collection_filter');
-            collectionDataTable.buttons().container().addClass('float-left');
-            $('.dt-buttons').addClass('btn-group-sm');
-            $('.dt-buttons div').addClass('btn-group-sm');
-            collectionTable.on('xhr.dt', function (e, settings, data) {
-                messages = {};
-                $.each(data.data, function(i, v) {
-                    messages[v.uuid] = v;
-                });
+                ],
             });
         }
 
@@ -149,7 +141,7 @@ include_once __DIR__ . '/../_header.php';
             let uuid = $('#select-participant-message').val();
             $.ajax({
                 url : '/participants/get-time-zone',
-                type : 'POST',
+                type : 'GET',
                 data: {'uuid': uuid},
                 success : function(data) {
                     if (data.success) {

@@ -1,99 +1,164 @@
 <?php
 
-require_once __DIR__ . '/../utilities/db.php';
+require_once __DIR__ . '/../utilities/CiLogonProvider.php';
+
 require_once __DIR__ . '/User.php';
 
+use League\OAuth2\Client\Token\AccessToken;
+
 class UserSession implements JsonSerializable {
-    protected $session_id;
-    protected $user;
-    protected $last_seen;
-    protected $remember_me;
+    protected string $session_id;
+    protected ?User $user;
+    protected string $expires;
+    protected ?AccessToken $token;
 
     public function __construct() { }
 
-    public static function create(string $session_id, User $user, bool $remember_me): UserSession {
-        $instance = new self();
-        $instance->setSessionId($session_id);
-        $instance->setUser($user);
-        $instance->setRememberMe($remember_me);
-        $instance = $instance->save();
-        return $instance;
-    }
-
-    public static function withSessionID($id): ?UserSession {
+    /**
+     * @param string $session_id id for a session (created by PHP)
+     * @param User $user User object
+     * @param AccessToken $token Token returned from CiLogon
+     * @return ?UserSession
+     */
+    public static function create(string $session_id, User $user, AccessToken $token): ?UserSession {
         try {
-            $instance = new self();
-            $instance->loadBySessionID($id);
-            if (!is_null($instance->last_seen)) {
-                global $config;
-                $timeout = (isset($config['sessions']) &&
-                    isset($config['sessions']['timeout']) &&
-                    is_int($config['sessions']['timeout']))
-                    ? $config['sessions']['timeout'] : 7200;
-                $now = new DateTime();
-                if (($now->getTimestamp() - $instance->last_seen->getTimestamp()) > $timeout) {
-                    self::delete($instance->session_id);
-                    $_SESSION['LOGIN_ERROR'] = "You have been logged out due to inactivity";
-                    $instance = null;
-                }
+            self::deleteOldSessions();
+            $config = include CONFIG_FILE;
+            $_SESSION['caai_session_id'] = $session_id;
+            $existing = UserSession::withSessionID($session_id);
+            if (!is_null($existing)){
+                $dateTime = new DateTime('now', new DateTimeZone('UTC'));
+                $dateTime->add(new DateInterval('PT' . $config['sessions']['max-age'] . 'S'));
+                $expireTime = $dateTime->format('Y-m-d H:i:s');
+                $existing->setExpires($expireTime);
+                error_log(print_r($existing, true));
+                return $existing->save();
             }
-            return $instance;
-        } catch (PDOException $e) {
+            $instance = new self();
+            $instance->setSessionId($session_id);
+            $instance->setUser($user);
+
+            $dateTime = new DateTime('now', new DateTimeZone('UTC'));
+            $dateTime->add(new DateInterval('PT' . $config['sessions']['max-age'] . 'S'));
+            $expireTime = $dateTime->format('Y-m-d H:i:s');
+            $instance->setExpires($expireTime);
+
+            $instance->setToken($token);
+            return $instance->save();
+        } catch (Exception $ex) {
+            error_log($ex->getMessage());
             return null;
         }
     }
 
-    public static function withRow($row): UserSession {
+    /**
+     * Creates an empty UserSession for when the user is not logged in
+     * @return UserSession
+     */
+    public static function createEmptyUserSession() {
+        $instance = new self();
+        $instance->setSessionId("");
+        $user = User::createEmptyUser();
+        $instance->setUser($user);
+        $instance->setExpires("");
+        $instance->setToken(null);
+        return $instance;
+    }
+
+    /**
+     * Get user with their session ID
+     * @param string $session_id session ID from PHP
+     * @return UserSession|null
+     *@throws PDOException if something DB goes wrong
+     */
+    public static function withSessionID(string $session_id): ?UserSession {
+        try {
+            $instance = new self();
+            $instance->loadBySessionID($session_id);
+            return $instance;
+        } catch (PDOException) {
+            return null;
+        }
+    }
+
+    /**
+     * Wrapper to convert DB row object to UserSession object
+     * @param array $row single row from DB query
+     * @return UserSession
+     */
+    public static function withRow(array $row): UserSession {
         $instance = new self();
         $instance->fill($row);
         return $instance;
     }
 
-    public static function delete($session_id): void {
-        $delete = "DELETE FROM user_sessions WHERE session_id = :session_id";
-        DB::run($delete, ['session_id' => $session_id]);
+    /**
+     * Deletes a session using a session ID
+     * @param string $session_id the id to delete
+     * @return void
+     */
+    public static function delete(string $session_id): void {
+        $delete = "DELETE FROM  user_sessions WHERE session_id = :session_id";
+        PostgresDB::run($delete, ['session_id' => $session_id]);
     }
 
-    protected function loadBySessionID($session_id): void {
-        $stmt = DB::run(
+    /**
+     * Deletes all expired sessions for a given user_id
+     * @return void
+     */
+    public static function deleteOldSessions(): void {
+        $delete = "DELETE FROM  user_sessions WHERE expires < NOW()";
+        PostgresDB::run($delete);
+    }
+
+    /**
+     * DB function to get a users session
+     * @param string $session_id the session id to load
+     * @return void
+     */
+    protected function loadBySessionID(string $session_id): void {
+        $stmt = PostgresDB::run(
             "SELECT * FROM user_sessions WHERE session_id = :session_id ORDER BY session_id OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY",
             ['session_id' => $session_id]
         );
-        $row = $stmt->fetch(PDO::FETCH_LAZY);
-        if ($row <> null) {
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($row != null) {
             $this->fill($row);
-            $this->seen();
         } else
-            throw new PDOException("Session with id [{$session_id}] not found");
+            throw new PDOException("Session with id [$session_id] not found");
     }
 
-    protected function fill($row): void {
+    /**
+     * Create UserSession object from Database Row
+     * @param array $row database row
+     * @return void
+     */
+    protected function fill(array $row): void {
         $this->session_id = $row['session_id'];
         $this->user = User::withId($row['user_id']);
+        $this->expires = $row['expires'];
         try {
-            $this->last_seen = new DateTime($row['last_seen']);
-        } catch (Exception $e) {
-            error_log("UserSession error setting last_seen [${row['last_seen']}]: " . $e->getMessage());
-            $this->last_seen = new DateTime();
+            $this->token = new AccessToken(json_decode($row['token'], true));
+        } catch (Firebase\JWT\ExpiredException) {
+            $this->token = null;
         }
-        $this->remember_me = $row['remember_me'];
     }
 
-    protected function save(): ?UserSession {
+    /** Save or Updates a User Session in DB
+     * @return UserSession|null
+     */
+    public function save(): ?UserSession {
         $exists = UserSession::withSessionID($this->getSessionId());
+        $token = $this->getToken();
+        $token = json_encode($token);
         if (is_null($exists)) {
-            $insert = "INSERT INTO user_sessions (session_id, user_id, remember_me) VALUES (?,?,?)";
-            DB::run($insert, [$this->getSessionId(), $this->getUser()->getId(), $this->getRememberMe()]);
+            $insert = "INSERT INTO  user_sessions (session_id, user_id, expires, token) VALUES (?,?,?,?)";
+            PostgresDB::run($insert, [$this->getSessionId(), $this->getUser()->getId(), $this->getExpires(), $token]);
         } else {
-            $update = "UPDATE user_sessions SET user_id=?, last_seen=GETDATE(), remember_me=? WHERE session_id=?";
-            DB::run($update, [$this->getUser()->getId(), $this->getRememberMe(), $this->getSessionId()]);
+            $update = "UPDATE  user_sessions SET user_id=?, expires = ?, token = ?  WHERE session_id=?";
+            PostgresDB::run($update, [$this->getUser()->getId(), $this->getExpires(), $token, $this->getSessionId()]);
         }
         return UserSession::withSessionID($this->getSessionId());
-    }
-
-    protected function seen(): void {
-        $update = "UPDATE user_sessions SET last_seen=GETDATE() WHERE session_id=?";
-        DB::run($update, [$this->getSessionId()]);
     }
 
     /**
@@ -110,47 +175,45 @@ class UserSession implements JsonSerializable {
     }
 
     /**
-     * @return User
+     * @return ?User
      */
-    public function getUser(): User {
+    public function getUser(): ?User {
         return $this->user;
     }
     /**
-     * @param User $user
+     * @param ?User $user
      */
-    public function setUser(User $user): void {
+    public function setUser(?User $user): void {
         $this->user = $user;
     }
 
-    /**
-     * @return DateTime
-     */
-    public function getLastSeen(): DateTime {
-        return $this->last_seen;
+    public function setExpires(string $expireTime): void {
+        $this->expires = $expireTime;
+    }
+
+    public function getExpires(): string {
+        return $this->expires;
     }
 
     /**
-     * @return mixed
+     * @return ?AccessToken
      */
-    public function getRememberMe() {
-        return $this->remember_me;
+    public function getToken(): ?AccessToken {
+        return $this->token;
     }
-    /**
-     * @param mixed $remember_me
-     */
-    public function setRememberMe($remember_me): void {
-        $this->remember_me = $remember_me;
+    public function setToken(?AccessToken $token): void {
+        $this->token = $token;
     }
 
     /**
-     * @return array|mixed
+     * @return array
      */
     public function jsonSerialize(): array {
         return [
             'session_id'    => $this->getSessionId(),
             'user'          => (!is_null($this->getUser())) ? $this->getUser()->jsonSerialize() : null,
-            'last_seen'     => $this->getLastSeen()->getTimestamp(),
-            'remember_me'   => $this->getRememberMe(),
+            'expires'        => $this->expires,
+            'token'         => $this->getToken()->jsonSerialize(),
         ];
     }
 }

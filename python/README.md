@@ -1,1 +1,0 @@
-# ffmpeg MUST BE INSTALLED TO USE THIS

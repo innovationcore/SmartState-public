@@ -1,6 +1,7 @@
 <?php
 /** @var UserSession $userSession */
 $page = 'participants-state';
+global $rootURL, $CONFIG;
 include_once __DIR__ . '/../_header.php';
 ?>
     <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
@@ -16,7 +17,7 @@ include_once __DIR__ . '/../_header.php';
             </div>
         </div>
         <div class="col-md-6 mb-3 form-floating">
-            <div id="state-info">
+            <div id="state-info" class="float-end">
                 <h5>Current State: <span id="current-state"></span></h5>
                 <select class="selectpicker" data-width="fit" id="move-to-next-state" data-none-selected-text="Select State" data-live-search="false"></select>
                 <button type="button" class="btn btn-sm btn-success" onclick=moveToState() id="btn-participant-state-refresh">Move State <i class="fas fa-arrow-right"></i></button>
@@ -26,9 +27,13 @@ include_once __DIR__ . '/../_header.php';
 
     <div class="row">
         <div class="col-md-12">
-            <button type="button" class="btn btn-secondary mb-2" data-toggle="collapse" data-target="#state-machine" aria-expanded="false" aria-controls="collapseExample">Show/Hide State Machine</button>
-            <div class="collapse mb-2" id="state-machine">
-                <div id="state-machine-content" class="card card-body"></div>
+            <button type="button" class="btn btn-secondary mb-2" data-bs-toggle="collapse" data-bs-target="#state-machine" aria-expanded="false" aria-controls="collapseExample">Show/Hide State Machine</button>
+            <div class="row">
+                <div class="offset-md-1 col-md-10 offset-md-1">
+                    <div class="collapse mb-2" id="state-machine">
+                        <div id="state-machine-content" class="card card-body"></div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -61,39 +66,54 @@ include_once __DIR__ . '/../_header.php';
     <script src="https://unpkg.com/d3-graphviz@3.0.5/build/d3-graphviz.js"></script>
    
     <script type="text/javascript">
-        var collection = {};
-        var collectionTable = $('#collection');
-        var collectionDataTable = null;
+        let collection = {};
+        let collectionTable = $('#collection');
+        let collectionDataTable = null;
 
         function updateDT() {
             let uuid = $('#select-participant-state').val();
             let protocol = $('#select-participant-protocol').find("option:selected").text();
-    
+            if (protocol.includes("(active)")) {
+                protocol = protocol.replace("(active)", "").trim();
+            }
+
+            // Destroy the previous instance if it exists
+            if ($.fn.DataTable.isDataTable('#collection')) {
+                $('#collection').DataTable().destroy();
+            }
+
             collectionDataTable = $('#collection').DataTable({
-                serverSide: false,
+                destroy: true,
+                serverSide: true,
+                processing: true,
                 ajax: {
                     url: "/participants/get-state-log",
-                    type: "POST",
+                    type: "GET",
                     data: {
                         'uuid': uuid,
-                        'protocol': protocol},
-                    error: function (xhr, error, thrown) {
-                        console.log(xhr);
-                        console.log(error);
-                        console.log(thrown);
-                    }
+                        'protocol': protocol
+                    },
                 },
-                order: [[ 0, "desc" ]],
+                order: [[0, "desc"]],
                 responsive: true,
-                dom: 'Bfrtip',
                 buttons: [
                     'pageLength', 'colvis'
                 ],
+                layout: {
+                    topStart: 'buttons',
+                },
                 columnDefs: [
-                    {"className": "dt-center", "targets": "_all"},
+                    {
+                        className: "dt-center",
+                        targets: "_all"
+                    },
                     {
                         type: "date",
                         targets: [0]
+                    },
+                    {
+                        orderable: false,
+                        targets: [1]
                     }
                 ],
                 language: {
@@ -102,32 +122,30 @@ include_once __DIR__ . '/../_header.php';
                 pagingType: "full_numbers",
                 columns: [
                     {
-                        data: 'TS',
+                        data: 'ts', // Timestamp column
+                        className: 'text-center'
                     },
                     {
-                        data: 'json',
+                        data: 'json', // JSON data column
+                        render: function (data, type, row) {
+                            // Format the JSON string as a readable object
+                            try {
+                                const parsed = JSON.parse(data);
+                                return JSON.stringify(parsed);
+                            } catch (e) {
+                                console.error("Error parsing JSON:", data);
+                                return data;
+                            }
+                        }
                     }
                 ]
             });
-            collectionDataTable.buttons().container().prependTo('#collection_filter');
-            collectionDataTable.buttons().container().addClass('float-left');
-            $('.dt-buttons').addClass('btn-group-sm');
-            $('.dt-buttons div').addClass('btn-group-sm');
-            collectionTable.on('xhr.dt', function (e, settings, data) {
-                if(data == null || data.data == null){
-                    return;
-                }
-                logs = {};
-                $.each(data.data, function(i, v) {
-                    logs[v.id] = v;
-                });
-            });
-            
-       }
+        }
+
 
         $(document).ready( function () {
             $.ajax({
-                url : '/participants/all',
+                url : '<?= $rootURL ?>/participants/all',
                 type : 'GET',
 
                 success : function(data) {
@@ -137,18 +155,30 @@ include_once __DIR__ . '/../_header.php';
                             let participant = JSON.parse(currentValue.json);
                             $('#select-participant-state').append("<option value='"+currentValue.uuid+"'>"+ participant.first_name + " "+ participant.last_name +"</option>");
                         });
+                        $('#select-participant-state').selectpicker('refresh');
                         $.ajax({
                             url : '/protocol-types/all',
                             type : 'GET',
-
+                            data: {
+                                'uuid': $('#select-participant-state').val(),
+                                'study': 'Default'
+                            },
                             success : function(data) {
                                 if (data.success) {
+                                    let active_id = "";
                                     data.protocols.forEach(function(currentValue, index, arr){
-                                        $('#select-participant-protocol').append("<option value='"+currentValue.id+"'>"+ currentValue.name +"</option>");
-                                        
+                                        if (data.actives.includes(currentValue.name)) {
+                                            $('#select-participant-protocol').append("<option value='"+currentValue.id+"'>"+ currentValue.name + " (active)</option>");
+                                            if (active_id === "") {
+                                                active_id = currentValue.id;
+                                            }
+                                        } else {
+                                            $('#select-participant-protocol').append("<option value='"+currentValue.id+"'>"+ currentValue.name +"</option>");
+                                        }
                                     });
+
+                                    $("#select-participant-protocol").val(active_id);
                                     $('#select-participant-protocol').selectpicker('refresh');
-                                    $('#select-participant-state').selectpicker('refresh');
 
                                     updateDT();
                                     updateCurrentState();
@@ -178,7 +208,7 @@ include_once __DIR__ . '/../_header.php';
             updateCurrentState();
         });
 
-        $('#select-participant-protocol').on('change', function (){
+        $('#select-participant-protocol').on('changed.bs.select', function (){
             $('#collection').DataTable().destroy();
             updateDT();
             updateNextStates();
@@ -189,12 +219,16 @@ include_once __DIR__ . '/../_header.php';
         function updateCurrentState(){
             let uuid = $('#select-participant-state').val();
             let protocol = $('#select-participant-protocol').find("option:selected").text();
+            if (protocol.includes("(active)")) {
+                protocol = protocol.replace("(active)", "").trim();
+            }
             $.ajax({
-                url : '/participants/get-current-state',
-                type : 'POST',
+                url : '<?= $rootURL ?>/participants/get-current-state',
+                type : 'GET',
                 data: {
                     'uuid': uuid,
-                    'protocol': protocol},
+                    'protocol': protocol
+                },
                 success : function(data) {
                     if (data.success) {
                         $('#current-state').html(data.state);
@@ -210,15 +244,15 @@ include_once __DIR__ . '/../_header.php';
         }
 
         function updateNextStates() {
+            let participant_uuid = $('#select-participant-state').val();
+            let participant_study = 'Default';
             let protocol = $('#select-participant-protocol').find("option:selected").text();
+            if (protocol.includes("(active)")) {
+                protocol = protocol.replace("(active)", "").trim();
+            }
             $.ajax ({
-                url: 'http://localhost:9000/api/get-valid-next-states/', //change to this when developing locally
+                url: '<?= $CONFIG['java_api_url'] ?>/api/get-valid-next-states/'+participant_uuid+'/'+participant_study+'/'+protocol,
                 type: 'GET',
-                data: {
-                    'participant_uuid': $('#select-participant-state').val(),
-                    'protocol': protocol
-                },
-
                 success: function(data) {
                     if (data.status == "ok") {
                         let states = data.valid_states.split(',');
@@ -242,18 +276,29 @@ include_once __DIR__ . '/../_header.php';
             let uuid = $('#select-participant-state').val();
             let state = $('#move-to-next-state').val();
             let protocol = $('#select-participant-protocol').find("option:selected").text();
+            if (protocol.includes("(active)")) {
+                protocol = protocol.replace("(active)", "").trim();
+            }
+
+            let time_for_state = -1; // this is for entering a time that a participant might text in to the system
+            if (state === "some-state-here") {
+                time_for_state = $('#time-start-end').val();
+            }
+
 
             $.ajax({
-                url : 'http://localhost:9000/api/next-state/', //change to this when developing locally
-                type : 'GET',
+                url : '<?= $CONFIG['java_api_url'] ?>/api/next-state/', //change to this when developing locally
+                type : 'POST',
                 data: {
                     'participantUUID': uuid, 
                     'toState': state,
+                    'time': time_for_state,
+                    'study': 'Default',
                     'protocol': protocol
                     },
 
                 success : function(data) {
-                    if (data.status == "ok") {
+                    if (data.status === "ok") {
                         updateCurrentState();
                         updateNextStates();
                         $('#collection').DataTable().destroy();
@@ -272,8 +317,11 @@ include_once __DIR__ . '/../_header.php';
         // graphviz stuff
         function loadGraphFile(){
             let protocol = $('#select-participant-protocol').find("option:selected").text();
+            if (protocol.includes("(active)")) {
+                protocol = protocol.replace("(active)", "").trim();
+            }
             $.ajax({
-                url : '/participants/get-state-machine',
+                url : '<?= $rootURL ?>/participants/get-state-machine',
                 type : 'POST',
                 data: {'protocol': protocol},
                 success : function(data) {

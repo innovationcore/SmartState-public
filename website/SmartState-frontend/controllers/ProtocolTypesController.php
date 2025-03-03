@@ -3,22 +3,23 @@ include_once MODELS_DIR . 'User.php';
 include_once MODELS_DIR . 'ProtocolType.php';
 
 class ProtocolTypesController {
-    public static function index(UserSession $userSession) {
+    public static function index(User $user) {
         require PROTOCOL_TYPES_VIEWS_DIR . 'index.php';
     }
 
-    public static function createProtocol(UserSession $userSession) {
+    public static function createProtocol(User $user) {
         header('Content-Type: application/json');
         $success = false;
         $error_message = null;
 
-        if (isset($_POST['name'])) {
+        if (!empty($_POST['name']) && !empty($_POST['study'])) {
             $name = $_POST['name'];
+            $study = $_POST['study'];
             $protocol = null;
             $code = null;
 
             try {
-                $protocol = ProtocolType::create($name);
+                $protocol = ProtocolType::create($name, $study);
             } catch (PDOException $e) {
                 $code = $e->getCode();
             }
@@ -35,9 +36,11 @@ class ProtocolTypesController {
         echo json_encode((object) array_filter($ret, function($value) { return $value !== null; }));
     }
 
-    public static function listDT(UserSession $userSession) {
+    public static function listDT(User $user) {
         header('Content-Type: application/json');
-
+        $study = "Default";
+        if (!empty($_GET['study']))
+            $study = $_GET['study'];
         $start = 0;
         if (isset($_GET['start']))
             $start = intval($_GET['start']);
@@ -55,7 +58,7 @@ class ProtocolTypesController {
             $order_dir = $_GET['order'][0]['dir'];
         $protocols = array();
         $idx = $start;
-        $results = ProtocolType::listForDatatable($start, $length, $order_by, $order_dir, $filter);
+        $results = ProtocolType::listForDatatable($start, $length, $order_by, $order_dir, $filter, $study);
         foreach ($results as $result) {
             $data_row = $result->jsonSerialize();
             $data_row['DT_RowId'] = $idx++;
@@ -64,14 +67,14 @@ class ProtocolTypesController {
         echo json_encode(
             array(
                 'draw' => (isset($_GET['draw'])) ? intval($_GET['draw']) : 0,
-                'recordsTotal' => intval(ProtocolType::countForDatatable()),
-                'recordsFiltered' => intval(ProtocolType::countFilteredForDatatable($filter)),
+                'recordsTotal' => intval(ProtocolType::countForDatatable($study)),
+                'recordsFiltered' => intval(ProtocolType::countFilteredForDatatable($filter, $study)),
                 'data' => $protocols,
             )
         );
     }
 
-    public static function getNameFromID(UserSession $userSession) {
+    public static function getNameFromID(User $user) {
         header('Content-Type: application/json');
         $success = false;
         $error_message = null;
@@ -94,11 +97,11 @@ class ProtocolTypesController {
         echo json_encode((object) array_filter($ret, function($value) { return $value !== null; }));
     }
 
-    public static function updateProtocol(UserSession $userSession) {
+    public static function updateProtocol(User $user) {
         header('Content-Type: application/json');
         $success = false;
         $error_message = null;
-        
+
         if (isset($_POST['id']) && isset($_POST['name'])) {
             $id = $_POST['id'];
             $name = $_POST['name'];
@@ -129,11 +132,11 @@ class ProtocolTypesController {
         echo json_encode((object) array_filter($ret, function($value) { return $value !== null; }));
     }
 
-    public static function deleteProtocol(UserSession $userSession) {
+    public static function deleteProtocol(User $user) {
         header('Content-Type: application/json');
         $success = false;
         $error_message = null;
-        
+
         if (isset($_POST['id'])) {
             $id = $_POST['id'];
             $isDeleted = ProtocolType::delete($id);
@@ -150,23 +153,32 @@ class ProtocolTypesController {
         echo json_encode((object) array_filter($ret, function($value) { return $value !== null; }));
     }
 
-    public static function getAll(UserSession $userSession) {
+    public static function getAll(User $user) {
         header('Content-Type: application/json');
         $success = false;
-        $error_message = null;
+        $error_message = "";
         $protocols = array();
-        try {
-            $results = ProtocolType::all();
-            foreach ($results as $result) {
-                $data_row = $result->jsonSerialize();
-                array_push($protocols, $data_row);
+        $actives = "";
+
+        if (isset($_GET['uuid']) && !empty($_GET['uuid']) && isset($_GET['study']) && !empty($_GET['study'])){
+            $part_uuid = $_GET['uuid'];
+            $study = $_GET['study'];
+            try {
+                $results = ProtocolType::all($study);
+                $actives = ProtocolType::getActives($part_uuid);
+                foreach ($results as $result) {
+                    $data_row = $result->jsonSerialize();
+                    $protocols[] = $data_row;
+                }
+                $success = true;
+            } catch (Exception $e) {
+                $error_message = $e->getMessage();
             }
-            $success = true;
-        } catch (Exception $e) {
-            $error_message = $e->getMessage();
+        } else {
+            $error_message = "No participant ID or study name provided.";
         }
 
-        $ret = array('success' => $success, 'error_message' => $error_message, 'protocols' => $protocols);
+        $ret = array('success' => $success, 'error_message' => $error_message, 'protocols' => $protocols, 'actives' => $actives);
         echo json_encode((object) array_filter($ret, function($value) { return $value !== null; }));
     }
 }

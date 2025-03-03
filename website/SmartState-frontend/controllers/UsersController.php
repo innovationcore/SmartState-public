@@ -2,15 +2,14 @@
 
 const USERS_VIEWS_DIR = __DIR__ . '/../views/users/';
 
-include_once MODELS_DIR . 'User.php';
-include_once MODELS_DIR . 'UserSession.php';
+require_once MODELS_DIR . 'User.php';
 
 class UsersController {
-    public static function index(UserSession $userSession) {
+    public static function index(User $user): void {
         require USERS_VIEWS_DIR . 'index.php';
     }
 
-    public static function listForDatatable(UserSession $userSession) {
+    public static function listForDatatable(User $user): void {
         header("Content-Type: application/json");
         $start = 0;
         if (isset($_GET['start']))
@@ -32,82 +31,77 @@ class UsersController {
         $results = User::listForDatatable($start, $length, $order_by, $order_dir, $filter);
         foreach ($results as $result) {
             $data_row = $result->jsonSerialize();
+            $roles = array();
+            foreach ($data_row["roles"] as $role){
+                $roles[$role] = User::getRoleNameFromId($role);
+            }
+            $data_row["roles"] = json_encode($roles, true);
+
             $data_row['DT_RowId'] = $idx++;
-            array_push($data, $data_row);
+            $data[] = $data_row; // new syntax for array_push()
         }
         echo json_encode(
             array(
                 'draw' => (isset($_GET['draw'])) ? intval($_GET['draw']) : 0,
-                'recordsTotal' => intval(User::countForDatatable()),
-                'recordsFiltered' => intval(User::countFilteredForDatatable($filter)),
+                'recordsTotal' => User::countForDatatable(),
+                'recordsFiltered' => User::countFilteredForDatatable($filter),
                 'data' => $data,
             )
         );
     }
 
-    public static function submit(UserSession $userSession) {
+    public static function submit(User $user): void {
         header("Content-Type: application/json");
         $success = false;
         $error_message = null;
         $user = null;
+        $adminPart = null;
         $action = "update";
-        if (!isset($_POST['id']) || empty($_POST['id'])) {
+        if (empty($_POST['id'])) {
             $action = "create";
         }
-        if (!isset($_POST['linkblue'])) {
-            $error_message = "You must supply account linkblue to submit user information";
+        if (!isset($_POST['email'])) {
+            $error_message = "Please enter a valid email address.";
+        } else if (!isset($_POST['number'])) {
+            $error_message = "Please enter a valid phone number.";
+        } else if (!isset($_POST['timezone'])) {
+            $error_message = "Please enter a timezone for this user.";
         } else if (!isset($_POST['role'])) {
-            $error_message = "You must supply account privileges to submit user information";
+            $error_message = "Please select a role for this user.";
         } else {
             $id = $_POST['id'];
-            $linkblue = $_POST['linkblue'];
+            $email = $_POST['email'];
+            $number = $_POST['number'];
+            $timezone = $_POST['timezone'];
             $role = $_POST['role'];
-            $pass = $_POST['pass']; // check if null and do things
-            $phone_number = $_POST['phone_number'];
-            $account_type = $_POST['account_type'];
             try {
                 if ($action == "create") {
-                    $user = User::withLinkblue($linkblue);
+                    $user = User::withEPPN($email);
                     if ($user != null) {
-                        $error_message = "User {$user->getLinkblue()} already exists";
+                        $error_message = "User with email [{$user->getEPPN()}] already exists";
                     } else {
-                        $user = User::create($linkblue, $role, $pass, $phone_number);
+                        $user = User::createBeforeLogin($email, $number, $timezone, $role);
+                        $adminPart = Participant::createAdmin(json_encode(['first_name' => $user->getFirstName(), 'last_name' => $user->getLastName(), 'number' => $number, 'time_zone' => $timezone]), "ADMIN");
                         $success = true;
                     }
-                } else if ($action == "update") {
-                    $user = User::update($id, $role, $pass, $phone_number, $account_type);
-                    $success = true;
                 } else {
-                    $error_message = "An invalid action has been attempted";
+                    $user = User::update($id, $email, $number, $timezone, $role);
+                    Participant::updateAdmin(json_encode(['first_name' => $user->getFirstName(), 'last_name' => $user->getLastName(), 'number' => $number, 'time_zone' => $timezone]), 'ADMIN');
+                    $success = true;
                 }
             } catch (Exception $e) {
                 $error_message = $e->getMessage();
             }
         }
-        $ret = array('success' => $success, 'action' => $action, 'error_message' => $error_message);
+        $ret = array('success' => $success, 'action' => $action, 'error_message' => $error_message, 'user' => $user, 'adminPart' => $adminPart);
         echo json_encode((object) array_filter($ret, function($value) { return $value !== null; }));
     }
 
-    public static function getUser(UserSession $userSession) {
+    public static function getRoles(User $user): void {
         header("Content-Type: application/json");
         $success = false;
         $error_message = null;
-        $user = $userSession->getUser()->getLinkblue();
-
-        try {
-            $userinfo = User::withLinkblue($user);
-            $success = true;
-        } catch (Exception $e) {
-            $error_message = $e->getMessage();
-        }
-        $ret = array('success' => $success, 'error_message' => $error_message, 'user' => $userinfo);
-        echo json_encode((object) array_filter($ret, function($value) { return $value !== null; }));
-    }
-
-    public static function getRoles(UserSession $userSession) {
-        header("Content-Type: application/json");
-        $success = false;
-        $error_message = null;
+        $roles = null;
 
         try {
             $roles = User::getAllRoles();
@@ -119,13 +113,12 @@ class UsersController {
         echo json_encode((object) array_filter($ret, function($value) { return $value !== null; }));
     }
 
-    public static function deleteUser(UserSession $userSession) {
+    public static function deleteUser(User $user): void {
         header("Content-Type: application/json");
         $success = false;
         $error_message = null;
-        $user = null;
-        
-        if (!isset($_POST['id']) || empty($_POST['id'])) {
+
+        if (empty($_POST['id'])) {
             $error_message = "User ID not found.";
         }
         else {
@@ -134,6 +127,10 @@ class UsersController {
                 $user = User::withId($id);
                 if ($user != null) {
                     $status = User::delete($id);
+
+                    if (!is_null($user->getNumber())) {
+                        Participant::deleteAdmin($user->getNumber());
+                    }
                     if ($status) {
                         $success = true;
                     } else {
@@ -142,7 +139,7 @@ class UsersController {
                 } else {
                     $error_message = "User not found.";
                 }
-                
+
             } catch (Exception $e) {
                 $error_message = $e->getMessage();
             }

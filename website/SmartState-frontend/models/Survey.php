@@ -41,7 +41,7 @@ class Survey {
     public static function all(): array {
         $surveys = [];
         $query = "SELECT * FROM surveys";
-        $stmt = DB::run($query);
+        $stmt = PostgresDB::run($query);
         while ($row = $stmt->fetch(PDO::FETCH_LAZY))
             array_push($surveys, Survey::withRow($row));
         return $surveys;
@@ -49,8 +49,8 @@ class Survey {
 
     public static function saveSurveyContent($result, $token, $participantUUID): void {
         $survey_json = json_encode($result);
-        $query = "UPDATE surveys SET finished_at=GETUTCDATE(), survey_json=:survey_json WHERE token=:token AND participant_uuid=:uuid";
-        $stmt = DB::prepare($query);
+        $query = "UPDATE surveys SET finished_at=NOW(), survey_json=:survey_json WHERE token=:token AND participant_uuid=:uuid";
+        $stmt = PostgresDB::prepare($query);
         $stmt->bindParam('survey_json', $survey_json);
         $stmt->bindParam('token', $token);
         $stmt->bindParam('uuid', $participantUUID);
@@ -61,7 +61,7 @@ class Survey {
         $isFinished = false;
         
         $query = "SELECT finished_at FROM surveys WHERE token=:token";
-        $stmt = DB::prepare($query);
+        $stmt = PostgresDB::prepare($query);
         $stmt->bindParam('token', $token);
         $stmt->execute();
         if($row = $stmt->fetch(PDO::FETCH_LAZY)){
@@ -73,7 +73,7 @@ class Survey {
     }
 
     public static function countForDatatable(): int {
-        $stmt = DB::run("SELECT count(token) FROM surveys");
+        $stmt = PostgresDB::run("SELECT count(token) FROM surveys");
         $count = $stmt->fetchColumn();
         return $count;
     }
@@ -84,7 +84,7 @@ class Survey {
             $filter = "%{$filter}%";
             $query .= " WHERE (created_at LIKE :filter)";
         }
-        $stmt = DB::prepare($query);
+        $stmt = PostgresDB::prepare($query);
         if (!is_null($filter) && strlen($filter) > 0) {
             $stmt->bindParam('filter', $filter);
         }
@@ -109,7 +109,7 @@ class Survey {
             $query .= " WHERE (finished_at LIKE :filter)";
         }
         $query .= " ORDER BY CASE WHEN {$order_by} IS NOT NULL THEN {$order_by} ELSE created_at END {$order_dir}{$prune}";
-        $stmt = DB::prepare($query);
+        $stmt = PostgresDB::prepare($query);
         if (!is_null($filter) && strlen($filter) > 0) {
             $stmt->bindValue('filter', $filter);
         }
@@ -122,7 +122,7 @@ class Survey {
     public static function checkValidToken($token): bool {
         $query = "SELECT count(token) FROM surveys WHERE token = :token";
         try{
-            $stmt = DB::prepare($query);
+            $stmt = PostgresDB::prepare($query);
             $stmt->bindParam('token', $token);
             
             $stmt->execute();
@@ -153,8 +153,25 @@ class Survey {
         return $instance;
     }
 
+    public static function getSurveyStats(): array {
+        $matches = array();
+        $totalQuery = PostgresDB::run("SELECT COUNT(token) AS total FROM surveys");
+        if ($row = $totalQuery->fetch(PDO::FETCH_LAZY))
+            $matches['total'] = $row['total'];
+        else
+            $matches['total'] = 'N/a';
+
+        $activeQuery = PostgresDB::run("SELECT COUNT(token) AS completed FROM surveys WHERE finished_at IS NOT NULL");
+        if ($row = $activeQuery->fetch(PDO::FETCH_LAZY))
+            $matches['completed'] = $row['completed'];
+        else
+            $matches['completed'] = 'N/a';
+
+        return $matches;
+    }
+
     protected function loadByID( $token ): void {
-        $stmt = DB::run(
+        $stmt = PostgresDB::run(
             "SELECT * FROM surveys WHERE token = :token",
             ['token' => $token]
         );
@@ -177,16 +194,16 @@ class Survey {
         $exists = Survey::withID($this->getID());
         if (is_null($exists)) {
             $insert = "INSERT INTO surveys (token, participant_uuid, created_at, finished_at, survey_json) VALUES (?,?,?,?,?)";
-            DB::run($insert, [$this->getToken(), $this->getParticipant(), $this->getCreatedAt(), $this->getFinishedAt(), $this->getSurveyJSON()]);
+            PostgresDB::run($insert, [$this->getToken(), $this->getParticipant(), $this->getCreatedAt(), $this->getFinishedAt(), $this->getSurveyJSON()]);
         } else {
             $update = "UPDATE surveys SET participant_uuid=?, created_at=?, finished_at=?, survey_json=? WHERE token=?";
-            DB::run($update, [$this->getParticipant(), $this->getCreatedAt(), $this->getFinishedAt(), $this->getSurveyJSON(), $this->getToken()]);
+            PostgresDB::run($update, [$this->getParticipant(), $this->getCreatedAt(), $this->getFinishedAt(), $this->getSurveyJSON(), $this->getToken()]);
         }
         return Survey::withID($this->getID());
     }
 
     protected function deleteFromID( $token ): bool {
-        $stmt = DB::prepare("DELETE FROM surveys WHERE token = :token");
+        $stmt = PostgresDB::prepare("DELETE FROM surveys WHERE token = :token");
         $stmt->bindParam('token', $token);
         $stmt->execute();
         if ($stmt->rowCount() > 0) 

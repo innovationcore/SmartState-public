@@ -2,16 +2,13 @@ package SmartState.Protocols.ReadGlucose;
 //%% NEW FILE ReadGlucoseBase BEGINS HERE %%
 
 /*PLEASE DO NOT EDIT THIS CODE*/
-/*This code was generated using the UMPLE 1.32.0.6441.414d09714 modeling language!*/
+/*This code was generated using the UMPLE 1.35.0.7523.c616a4dce modeling language!*/
 
 
 import java.util.*;
 
-/**
- * UML State diagram for a library loan, represented in Umple
- */
-// line 3 "model.ump"
-// line 113 "model.ump"
+// line 2 "model.ump"
+// line 92 "model.ump"
 public class ReadGlucoseBase
 {
 
@@ -102,7 +99,7 @@ public class ReadGlucoseBase
   public boolean receivedWaitStart()
   {
     boolean wasEventProcessed = false;
-    
+
     State aState = state;
     switch (aState)
     {
@@ -120,7 +117,7 @@ public class ReadGlucoseBase
   public boolean receivedWarnStart()
   {
     boolean wasEventProcessed = false;
-    
+
     State aState = state;
     switch (aState)
     {
@@ -135,10 +132,56 @@ public class ReadGlucoseBase
     return wasEventProcessed;
   }
 
+  public boolean receivedStartGlucose()
+  {
+    boolean wasEventProcessed = false;
+
+    State aState = state;
+    switch (aState)
+    {
+      case initial:
+        setState(State.startReading);
+        wasEventProcessed = true;
+        break;
+      case waitStart:
+        exitState();
+        setState(State.startReading);
+        wasEventProcessed = true;
+        break;
+      case warnStartGlucose:
+        exitState();
+        setState(State.startReading);
+        wasEventProcessed = true;
+        break;
+      default:
+        // Other states do respond to this event
+    }
+
+    return wasEventProcessed;
+  }
+
+  public boolean receivedEndofEpisode()
+  {
+    boolean wasEventProcessed = false;
+
+    State aState = state;
+    switch (aState)
+    {
+      case initial:
+        setState(State.endOfEpisode);
+        wasEventProcessed = true;
+        break;
+      default:
+        // Other states do respond to this event
+    }
+
+    return wasEventProcessed;
+  }
+
   public boolean receivedEndProtocol()
   {
     boolean wasEventProcessed = false;
-    
+
     State aState = state;
     switch (aState)
     {
@@ -172,34 +215,10 @@ public class ReadGlucoseBase
     return wasEventProcessed;
   }
 
-  public boolean receivedStartGlucose()
-  {
-    boolean wasEventProcessed = false;
-    
-    State aState = state;
-    switch (aState)
-    {
-      case waitStart:
-        exitState();
-        setState(State.startReading);
-        wasEventProcessed = true;
-        break;
-      case warnStartGlucose:
-        exitState();
-        setState(State.startReading);
-        wasEventProcessed = true;
-        break;
-      default:
-        // Other states do respond to this event
-    }
-
-    return wasEventProcessed;
-  }
-
   public boolean timeoutwaitStartTowarnStartGlucose()
   {
     boolean wasEventProcessed = false;
-    
+
     State aState = state;
     switch (aState)
     {
@@ -218,7 +237,7 @@ public class ReadGlucoseBase
   public boolean timeoutwarnStartGlucoseTomissedStart()
   {
     boolean wasEventProcessed = false;
-    
+
     State aState = state;
     switch (aState)
     {
@@ -237,7 +256,7 @@ public class ReadGlucoseBase
   public boolean receivedEndConnection()
   {
     boolean wasEventProcessed = false;
-    
+
     State aState = state;
     switch (aState)
     {
@@ -255,7 +274,7 @@ public class ReadGlucoseBase
   public boolean receivedError()
   {
     boolean wasEventProcessed = false;
-    
+
     State aState = state;
     switch (aState)
     {
@@ -270,10 +289,10 @@ public class ReadGlucoseBase
     return wasEventProcessed;
   }
 
-  private boolean __autotransition14836__()
+  private boolean __autotransition4397__()
   {
     boolean wasEventProcessed = false;
-    
+
     State aState = state;
     switch (aState)
     {
@@ -288,10 +307,10 @@ public class ReadGlucoseBase
     return wasEventProcessed;
   }
 
-  private boolean __autotransition14837__()
+  private boolean __autotransition4398__()
   {
     boolean wasEventProcessed = false;
-    
+
     State aState = state;
     switch (aState)
     {
@@ -306,10 +325,10 @@ public class ReadGlucoseBase
     return wasEventProcessed;
   }
 
-  private boolean __autotransition14838__()
+  private boolean __autotransition4399__()
   {
     boolean wasEventProcessed = false;
-    
+
     State aState = state;
     switch (aState)
     {
@@ -327,7 +346,7 @@ public class ReadGlucoseBase
   public boolean timeoutendOfEpisodeTowaitStart()
   {
     boolean wasEventProcessed = false;
-    
+
     State aState = state;
     switch (aState)
     {
@@ -367,53 +386,45 @@ public class ReadGlucoseBase
     switch(state)
     {
       case initial:
-        // line 14 "model.ump"
-        // here we will retrieve all participants for this protocol then move into the waitStart state
+        // line 11 "model.ump"
         stateNotify("initial");
         break;
       case waitStart:
-        // line 25 "model.ump"
-        // here we will wait 30 minutes to receive a connection from each participant
-        // possibly send a text saying to start measuring their glucose
+        // line 23 "model.ump"
         stateNotify("waitStart");
         startTimeoutwaitStartTowarnStartGlucoseHandler();
         break;
       case warnStartGlucose:
-        // line 41 "model.ump"
-        // here we will wait an additional 30 minutes for a participant to start reading their glucose
+        // line 32 "model.ump"
         stateNotify("warnStartGlucose");
         startTimeoutwarnStartGlucoseTomissedStartHandler();
         break;
       case startReading:
-        // line 57 "model.ump"
-        // here we will wait and record glucose for a participant, until the connection ends
+        // line 41 "model.ump"
         stateNotify("startReading");
         break;
       case finishedReading:
-        // line 68 "model.ump"
-        // here we will do computations and save results in DB
+        // line 50 "model.ump"
         stateNotify("finishedReading");
-        __autotransition14836__();
+        __autotransition4397__();
         break;
       case missedStart:
-        // line 75 "model.ump"
-        // here we will send the user a text saying that an Admin will be contacting them
+        // line 56 "model.ump"
         stateNotify("missedStart");
-        __autotransition14837__();
+        __autotransition4398__();
         break;
       case notifyAdmin:
-        // line 83 "model.ump"
-        // here we will send a text to an admin notifying them of failures or when a user needs help
+        // line 63 "model.ump"
         stateNotify("notifyAdmin");
-        __autotransition14838__();
+        __autotransition4399__();
         break;
       case endOfEpisode:
-        // line 92 "model.ump"
+        // line 70 "model.ump"
         stateNotify("endOfEpisode");
         startTimeoutendOfEpisodeTowaitStartHandler();
         break;
       case endReadGlucoseProtocol:
-        // line 100 "model.ump"
+        // line 78 "model.ump"
         stateNotify("endReadGlucoseProtocol");
         break;
     }
@@ -449,13 +460,13 @@ public class ReadGlucoseBase
     timeoutendOfEpisodeTowaitStartHandler.stop();
   }
 
-  public static class TimedEventHandler extends TimerTask  
+  public static class TimedEventHandler extends TimerTask
   {
     private ReadGlucoseBase controller;
     private String timeoutMethodName;
     private double howLongInSeconds;
     private Timer timer;
-    
+
     public TimedEventHandler(ReadGlucoseBase aController, String aTimeoutMethodName, double aHowLongInSeconds)
     {
       controller = aController;
@@ -464,12 +475,12 @@ public class ReadGlucoseBase
       timer = new Timer();
       timer.schedule(this, (long)howLongInSeconds*1000);
     }
-    
+
     public void stop()
     {
       timer.cancel();
     }
-    
+
     public void run ()
     {
       if ("timeoutwaitStartTowarnStartGlucose".equals(timeoutMethodName))
@@ -505,14 +516,9 @@ public class ReadGlucoseBase
   public void delete()
   {}
 
-  // line 107 "model.ump"
+  // line 85 "model.ump"
   public boolean stateNotify(String node){
     return true;
-  }
-
-  // line 108 "model.ump"
-  public int currentTime(){
-    return 1;
   }
 
 

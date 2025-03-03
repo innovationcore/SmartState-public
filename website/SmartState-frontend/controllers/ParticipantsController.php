@@ -5,15 +5,15 @@ include_once MODELS_DIR . 'User.php';
 include_once MODELS_DIR . 'Participant.php';
 
 class ParticipantsController {
-    public static function index(UserSession $userSession) {
+    public static function index(User $user) {
         require PARTICIPANTS_VIEWS_DIR . 'index.php';
     }
 
-    public static function stateIndex(UserSession $userSession) {
+    public static function stateIndex(User $user) {
         require PARTICIPANTS_VIEWS_DIR . 'state-log.php';
     }
     
-    public static function getAllParticipants(UserSession $userSession) {
+    public static function getAllParticipants(User $user) {
         header('Content-Type: application/json');
         $success = false;
         $error_message = null;
@@ -35,10 +35,10 @@ class ParticipantsController {
         echo json_encode((object) array_filter($ret, function($value) { return $value !== null; }));
     }
 
-    public static function listStateDT(UserSession $userSession) {
+    public static function listStateDT(User $user) {
         header('Content-Type: application/json');
 
-        if (empty($_POST['uuid']) || is_null($_POST['uuid'])) {
+        if (empty($_GET['uuid']) || empty($_GET['protocol'])) {
             echo json_encode(
                 array(
                     'draw' => (isset($_GET['draw'])) ? intval($_GET['draw']) : 0,
@@ -66,65 +66,68 @@ class ParticipantsController {
         if (isset($_GET['order'][0]['dir']))
             $order_dir = $_GET['order'][0]['dir'];
         $logs = array();
+        $error_message = "";
         $idx = $start;
-        $results = Participant::listStateForDatatable($_POST['uuid'], $_POST['protocol'], $start, $length, $order_by, $order_dir, $filter);
+        $results = Participant::listStateForDatatable($_GET['uuid'], $_GET['protocol'], $start, $length, $order_by, $order_dir, $filter);
+
         foreach ($results as $result) {
             $data_row = $result;
             $data_row['DT_RowId'] = $idx++;
-            $participantTimeZone = Participant::getTimeZoneFromUUID($_POST['uuid']);
+            $participantTimeZone = Participant::getTimeZoneFromUUID($_GET['uuid']);
 
             try {
-                $date = new DateTime($data_row['TS'], new DateTimeZone('UTC'));
+                $date = new DateTime($data_row['ts'], new DateTimeZone('UTC'));
                 $date->setTimezone(new DateTimeZone($participantTimeZone));
-                $data_row['TS'] = $date->format('m/d/Y h:i:s a');
-                $data_row['TS'] .= ' ';
-                $data_row['TS'] .= $participantTimeZone;
+                $data_row['ts'] = $date->format('m/d/Y h:i:s a');
+                $data_row['ts'] .= ' ';
+                $data_row['ts'] .= $participantTimeZone;
             } catch (Exception $e) {
                 $error_message = $e->getMessage();
             }
-            array_push($logs, $data_row);
+            $logs[] = $data_row;
         }
         echo json_encode(
             array(
                 'draw' => (isset($_GET['draw'])) ? intval($_GET['draw']) : 0,
-                'recordsTotal' => intval(Participant::countForStateDatatable($_POST['uuid'])),
-                'recordsFiltered' => intval(Participant::countFilteredForStateDatatable($_POST['uuid'], $filter)),
+                'recordsTotal' => Participant::countForStateDatatable($_GET['uuid']),
+                'recordsFiltered' => Participant::countFilteredForStateDatatable($_GET['uuid'], $filter),
                 'data' => $logs,
+                'error_message' => $error_message
             )
         );
     }
 
-    public static function getCurrentState(UserSession $userSession) {
+    public static function getCurrentState(User $user) {
         header('Content-Type: application/json');
         $success = false;
         $error_message = null;
         $state = null;
 
-        if(empty($_POST['uuid']) || is_null($_POST['uuid']) && (empty($_POST['protocol']) || is_null($_POST{'protocol'}))) {
+        if(empty($_GET['uuid']) || empty($_GET['protocol'])) {
             $error_message = 'No participant UUID/protocol provided';
         } else {
-            $state = Participant::getCurrentStateString($_POST['uuid'], $_POST['protocol']);
+            $state = Participant::getCurrentStateString($_GET['uuid'], $_GET['protocol']);
             if(!is_null($state)) {
                 $success = true;
             } else {
                 $error_message = 'No participant state found';
             }
         }
-        
+
         $ret = array('success' => $success, 'error_message' => $error_message, 'state' => $state);
         echo json_encode((object) array_filter($ret, function($value) { return $value !== null; }));
     }
 
-    public static function getTimeZone(UserSession $userSession) {
+    public static function getTimeZone(User $user) {
         header('Content-Type: application/json');
         $success = false;
         $error_message = null;
         $timezone = null;
 
-        if(empty($_POST['uuid']) || is_null($_POST['uuid'])) {
+        if(empty($_GET['uuid'])) {
             $error_message = 'No participant UUID provided';
         } else {
-            $timezone = Participant::getTimeZone($_POST['uuid']);
+            $timezone = Participant::getTimeZone($_GET['uuid']);
             if(!is_null($timezone)) {
                 $success = true;
             } else {
@@ -136,7 +139,7 @@ class ParticipantsController {
         echo json_encode((object) array_filter($ret, function($value) { return $value !== null; }));
     }
 
-    public static function fillGroupDropdown(UserSession $userSession) {
+    public static function fillGroupDropdown(User $user) {
         header('Content-Type: application/json');
         $success = false;
         $error_message = null;
@@ -157,7 +160,7 @@ class ParticipantsController {
         echo json_encode((object) array_filter($ret, function($value) { return $value !== null; }));
     }
 
-    public static function fillLocationDropdown(UserSession $userSession) {
+    public static function fillLocationDropdown(User $user) {
         header('Content-Type: application/json');
         $success = false;
         $error_message = null;
@@ -166,7 +169,7 @@ class ParticipantsController {
         try {
             $results = Participant::allLocations();
             foreach ($results as $result) {
-                array_push($locations, $result['location']);
+                $locations[] = $result['location'];
             }
             $success = true;
         } catch (Exception $e) {
@@ -178,12 +181,12 @@ class ParticipantsController {
         echo json_encode((object) array_filter($ret, function($value) { return $value !== null; }));
     }
 
-    public static function fillTimeZoneDropdown(UserSession $userSession) {
+    public static function fillTimeZoneDropdown(User $user) {
         header('Content-Type: application/json');
         $success = false;
         $error_message = null;
         $timeZones = [];
-        if (isset($_GET['location'])) {
+        if (isset($_GET['location']) && !empty($_GET['location'])) {
             $location = $_GET['location'];
             $results = Participant::getZonesWithLocation($location);
             foreach ($results as $result) {
@@ -198,38 +201,38 @@ class ParticipantsController {
         echo json_encode((object) array_filter($ret, function($value) { return $value !== null; }));
     }
 
-    public static function addParticipant(UserSession $userSession) {
+    public static function addParticipant(User $user) {
         header('Content-Type: application/json');
         $success = false;
         $error_message = null;
 
-        if (isset($_POST['info'])) {
+        if (isset($_POST['info']) && isset($_POST['study'])) {
             $info = $_POST['info'];
+            $study = $_POST['study'];
             $json = json_encode($info);
-            $participant = null;
 
             try {
-                $participant = Participant::create($json);
+                Participant::create($json, $study);
                 $success = true;
             } catch (Exception $e) {
                 $error_message = $e->getMessage();
             }
         } else {
-            $error_message = "Please provide info for the participant.";
+            $error_message = "Please provide info and study for the participant.";
         }
 
         $ret = array('success' => $success, 'error_message' => $error_message);
         echo json_encode((object) array_filter($ret, function($value) { return $value !== null; }));
     }
 
-    public static function getParticipant(UserSession $userSession) {
+    public static function getParticipant(User $user) {
         header('Content-Type: application/json');
         $success = false;
-        $error_message = null;
+        $error_message = "";
         $json = null;
         $participants = [];
 
-        if (isset($_GET['id'])) {
+        if (!empty($_GET['id'])) {
             $uuid = $_GET['id'];
             try {
                 $participant = Participant::withID($uuid);
@@ -245,51 +248,55 @@ class ParticipantsController {
         } else {
             $error_message = "No ID specified";
         }
+        // Decode JSON to an associative array
         $decoded = json_decode($json, true);
-        $firstName = $decoded['first_name'];
-        $lastName = $decoded['last_name'];
-        $phoneNumber = substr($decoded['number'], 2);
-        $devEUI = $decoded['devEUI'];
-        $group = $decoded['group'];
-        $timeZone = $decoded['time_zone'];
-        $split = explode("/", $timeZone);
-        $location = $split[0];
-        array_push($participants, array('first_name' => $firstName, 'last_name' => $lastName, 'number' => $phoneNumber, 'devEUI'=> $devEUI, 'group' => $group, 'location' => $location, 'time_zone' => $timeZone));
 
+        // Extract values directly into the participant array
+        $participants[] = array(
+            'first_name'    => $decoded['first_name'] ?? null,
+            'last_name'     => $decoded['last_name'] ?? null,
+            'number'        => isset($decoded['number']) ? substr($decoded['number'], 2) : null,
+            'email'         => $decoded['email'] ?? null,
+            'group'         => $decoded['group'] ?? null,
+            'devEUI'        => $decoded['devEUI'] ?? null,
+            'time_zone'     => $decoded['time_zone'] ?? null,
+            'location'      => isset($decoded['time_zone']) ? explode("/", $decoded['time_zone'])[0] : null
+        );
 
         $ret = array('success' => $success, 'error_message' => $error_message, 'data' => $participants);
         echo json_encode((object) array_filter($ret, function($value) { return $value !== null; }));
     }
 
-    public static function updateParticipant(UserSession $userSession) {
+    public static function updateParticipant(User $user) {
         header('Content-Type: application/json');
         $success = false;
         $error_message = null;
 
-        if (isset($_POST['id']) && isset($_POST['info'])) {
+        if (!empty($_POST['id']) && !empty($_POST['info']) && !empty($_POST['study'])) {
             $uuid = $_POST['id'];
             $info = $_POST['info'];
+            $study = $_POST['study'];
             $participant = null;
 
             try {
-                $participant = Participant::update($uuid, $info);
+                $participant = Participant::update($uuid, $info, $study);
                 $success = true;
             } catch (Exception $e) {
                 $error_message = $e->getMessage();
             }
         } else {
-            $error_message = "No ID or name specified";
+            $error_message = "No ID or info specified";
         }
 
         $ret = array('success' => $success, 'error_message' => $error_message);
         echo json_encode((object) array_filter($ret, function($value) { return $value !== null; }));
     }
 
-    public static function deleteParticipant(UserSession $userSession) {
+    public static function deleteParticipant(User $user) {
         header('Content-Type: application/json');
         $success = false;
         $error_message = null;
-        
+
         if (isset($_POST['id'])) {
             $uuid = $_POST['id'];
             try {
@@ -310,9 +317,12 @@ class ParticipantsController {
         echo json_encode((object) array_filter($ret, function($value) { return $value !== null; }));
     }
 
-    public static function listDT(UserSession $userSession) {
+    public static function listDT(User $user) {
         header('Content-Type: application/json');
 
+        $study = "Default";
+        if (!empty($_GET['study']))
+            $study = $_GET['study'];
         $start = 0;
         if (isset($_GET['start']))
             $start = intval($_GET['start']);
@@ -328,44 +338,83 @@ class ParticipantsController {
         $order_dir = 'desc';
         if (isset($_GET['order'][0]['dir']))
             $order_dir = $_GET['order'][0]['dir'];
-        $participants = array();
+
+        // Initialize participants array and start index
+        $participants = [];
         $idx = $start;
-        $results = Participant::listForDatatable($start, $length, $order_by, $order_dir, $filter);
+
+        // Fetch results from Participant class
+        $results = Participant::listForDatatable($start, $length, $order_by, $order_dir, $filter, $study);
+
+        // Iterate through results and build the participant list
         foreach ($results as $result) {
             $data_row = $result->jsonSerialize();
-            $data_row['DT_RowId'] = $idx++;
-            $json = $data_row['json'];
-            $decoded = json_decode($json, true);
-            $name = $decoded['first_name'] . ' ' . $decoded['last_name'];
-            $group = $decoded['group'];
-            array_push($participants, array('name' => $name, 'number' => $decoded['number'], 'group' => $group, 'id' => $data_row['uuid'], 'DT_RowId' => $data_row['DT_RowId']));
+            $decoded = json_decode($data_row['json'], true);
+
+            // Combine first and last name
+            $name = "{$decoded['first_name']} {$decoded['last_name']}";
+
+            // Add participant details to the participants array
+            $participants[] = [
+                'name'      => $name,
+                'number'    => $decoded['number'],
+                'email'     => $decoded['email'],
+                'group'     => $decoded['group'],
+                'dev_eui'   => $decoded['devEUI'],
+                'id'        => $data_row['uuid'],
+                'DT_RowId'  => $idx++
+            ];
         }
+
         echo json_encode(
             array(
                 'draw' => (isset($_GET['draw'])) ? intval($_GET['draw']) : 0,
-                'recordsTotal' => intval(Participant::countForDatatable()),
-                'recordsFiltered' => intval(Participant::countFilteredForDatatable($filter)),
+                'recordsTotal' => Participant::countForDatatable(),
+                'recordsFiltered' => Participant::countFilteredForDatatable($filter),
                 'data' => $participants,
             )
         );
     }
 
-    public static function getStateMachine(UserSession $userSession) {
+    public static function getStateMachine(User $user) {
         header('Content-Type: application/json');
         $success = false;
         $error_message = "";
         $content = "";
 
-        if(empty($_POST['protocol']) || is_null($_POST{'protocol'})) {
+        if(empty($_POST['protocol'])) {
             $error_message = 'You must provide a protocol.';
         } else {
             $protocol = $_POST['protocol'];
-            //$content = scandir(".");
             $content = file_get_contents("./img/".$protocol.".gv");
             $success = true;
         }
-        
+
         $ret = array('success' => $success, 'error_message' => $error_message, 'content' => $content);
+        echo json_encode((object) array_filter($ret, function($value) { return $value !== null; }));
+    }
+
+    public static function getHomeStats(User $user) {
+        header('Content-Type: application/json');
+        $success = false;
+        $error_message = "";
+        $participantStats = array();
+        $surveyStats = array();
+
+        try {
+            $participantStats = Participant::getParticipantStats();
+            $surveyStats = Survey::getSurveyStats();
+            $success = true;
+        } catch (Exception $e) {
+            $error_message = $e->getMessage();
+        }
+
+        $ret = array(
+            'success' => $success,
+            'error_message' => $error_message,
+            'patientStats' => $participantStats,
+            'surveyStats' => $surveyStats
+        );
         echo json_encode((object) array_filter($ret, function($value) { return $value !== null; }));
     }
 }

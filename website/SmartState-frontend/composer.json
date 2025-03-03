@@ -1,20 +1,40 @@
 {
   "name": "vendor_name/orders",
   "description": "description",
+  "version": "1.0.0",
   "minimum-stability": "stable",
   "license": "proprietary",
   "authors": [
     {
-      "name": "author",
+      "name": "Caylin Hickey",
       "email": "email@example.com"
+    },
+    {
+      "name": "Sam Armstrong",
+      "email": "sear234@uky.edu"
+    },
+    {
+      "name": "Mitchell Klusty",
+      "email": "mitchell.klusty@uky.edu"
     }
   ],
   "require": {
-    "altorouter/altorouter": "2.0.1",
-    "ext-ldap": "*",
+    "altorouter/altorouter": "2.0.2",
     "ext-pdo": "*",
     "ext-json": "*",
-    "setasign/fpdf": "^1.8",
-    "twilio/sdk": "^6.25"
+    "firebase/php-jwt": "*",
+    "cilogon/oauth2-cilogon": "*",
+    "league/oauth2-client": "2.7.0",
+    "guzzlehttp/guzzle": "*",
+    "aws/aws-sdk-php": "^3.317.2",
+    "pestphp/pest": "*",
+    "mockery/mockery": "*",
+    "twilio/sdk": "^6.25",
+    "ext-curl": "*"
+  },
+  "config": {
+    "allow-plugins": {
+      "pestphp/pest-plugin": true
+    }
   }
 }

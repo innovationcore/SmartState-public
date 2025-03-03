@@ -1,6 +1,0 @@
-[DEFAULT]
-RivaURL = localhost
-RivaPort = 50051
-
-RasaURL = localhost
-RasaPort = 5005

@@ -19,7 +19,7 @@ class SurveyController {
         }
     }
 
-    public static function view(UserSession $userSession) {
+    public static function view(User $user) {
         require SURVEY_VIEWS_DIR . 'view.php';
     }
 
@@ -27,7 +27,7 @@ class SurveyController {
         require SURVEY_VIEWS_DIR . 'thanks.php';
     }
 
-    public static function listDT(UserSession $userSession) {
+    public static function listDT(User $user) {
         header('Content-Type: application/json');
 
         try{
@@ -95,48 +95,26 @@ class SurveyController {
         $success = false;
         $error_message = "";
 
-        if(empty($_POST['text']) || is_null($_POST['text'])){
-            $error_message = "Please continue to take the survey. Click \"I'm finished!\", when prompted.";
-        } else if (empty($_POST['token']) || is_null($_POST['token'])){
+        if(empty($_POST['answers'])){
+            $error_message = "Please continue to take the survey. Click \"Submit\", when you're finished.";
+        } else if (empty($_POST['token'])){
             $error_message = "Survey is invalid or has expired, please check you link or refresh the page.";
-        } else if (empty($_POST['participantUUID']) || is_null($_POST['participantUUID'])){
+        } else if (empty($_POST['participantUUID'])){
             $error_message = "Survey is invalid, please check your link or refresh the page.";
         } else {
-            $surveyText = $_POST['text'];
+            $surveyAnswers = $_POST['answers'];
             $token = $_POST['token'];
             $participantUUID = $_POST['participantUUID'];
-            $textToCheck = "Here's your daily wellness log:";
-            if (strpos($surveyText, $textToCheck) !== false){
-                try {
-                    $result = SurveyController::parseEndSurvey($surveyText); // returns array
-                    Survey::saveSurveyContent($result, $token, $participantUUID);
-                    $success = true;
-                } catch (Exception $ex){
-                    $error_message = $ex->getMessage();
-                }
-            } else {
-                $error_message = "Please continue to take the survey. Click \"I'm finished!\", when prompted.";
+            try {
+                Survey::saveSurveyContent($surveyAnswers, $token, $participantUUID);
+                $success = true;
+            } catch (Exception $ex){
+                $error_message = $ex->getMessage();
             }
         }
 
         $ret = array('success' => $success, 'error_message' => $error_message);
         echo json_encode((object) array_filter($ret, function($value) { return $value !== null; }));
-    }
-
-    public static function parseEndSurvey($text){
-        $result = array();
-        $splitText = explode('-', $text);
-
-        $result['last_eaten']       = trim(explode(":", $splitText[1], 2)[1]);
-        $result['exercise_today']   = trim(explode(":", $splitText[2], 2)[1]);
-        $result['stress_level']     = trim(explode(":", $splitText[3], 2)[1]);
-        $result['water_today']      = trim(explode(":", $splitText[4], 2)[1]);
-        
-        $contact = trim(explode(":", $splitText[5], 2)[1]); 
-        $contact = trim(explode("\n", $contact, 2)[0]); 
-        $result['contact_from_pro'] = $contact;
-
-        return $result;
     }
 
 }

@@ -122,7 +122,7 @@ public class ReadGlucoseWatcher {
         return validNextStates;
     }
 
-    public String moveToState(String participantId, String moveToState) {
+    public String moveToState(String participantId, String moveToState, String time) {
         String newState = "";
         try {
             ReadGlucose participant = readGlucoseMap.get(participantId);
@@ -269,6 +269,40 @@ public class ReadGlucoseWatcher {
 
     }
 
+    public void updateTimeZone(String participantId, String tz) {
+        synchronized (lockReadGlucose) {
+            ReadGlucose toUpdate = readGlucoseMap.get(participantId);
+            if (toUpdate == null) {
+                logger.warn("Cannot update timezone, participant not in study.");
+            } else {
+                logger.warn(participantId + ": changed TZ from " + toUpdate.TZHelper.getUserTimezone() + " to " + tz);
+                toUpdate.TZHelper.setUserTimezone(tz);
+            }
+        }
+    }
+
+    public void resetStateMachine(String participantId){
+        synchronized (lockReadGlucose) {
+            // Remove participant from protocol
+            ReadGlucose removed = readGlucoseMap.remove(participantId);
+            if (removed != null) {
+                removed.receivedEndProtocol();
+                removed.uploadSave.shutdownNow();
+                removed = null;
+                System.gc();
+            }
+
+            //restart at beginning
+            List<Map<String,String>> participantMapList = Launcher.dbEngine.getParticipantMapByGroup("Default", "ReadGlucose");
+            //Create person
+            Map<String, String> addMap = getHashMapByParticipantUUID(participantMapList, participantId);
+            ReadGlucose p0 = new ReadGlucose(addMap);
+
+            p0.restoreSaveState(true);
+            readGlucoseMap.put(participantId, p0);
+        }
+    }
+
     class startReadGlucose extends TimerTask {
         private final Logger logger;
         private List<Map<String,String>> previousMapList;
@@ -279,7 +313,7 @@ public class ReadGlucoseWatcher {
         public void run() {
             try {
                synchronized (lockEpisodeReset) {
-                   List<Map<String,String>> participantMapList = Launcher.dbEngine.getParticipantMapByGroup("ReadGlucose");
+                   List<Map<String,String>> participantMapList = Launcher.dbEngine.getParticipantMapByGroup("Default", "ReadGlucose");
                    if (previousMapList == null){
                         //first run
                         previousMapList = participantMapList;
@@ -325,7 +359,7 @@ public class ReadGlucoseWatcher {
                            ReadGlucose p0 = new ReadGlucose(participantMap);
 
                            logger.info("Restoring State for participant_uuid=" + participantMap.get("participant_uuid"));
-                           p0.restoreSaveState();
+                           p0.restoreSaveState(false);
 
                            synchronized (lockReadGlucose) {
                                readGlucoseMap.put(participantMap.get("participant_uuid"), p0);
@@ -344,9 +378,16 @@ public class ReadGlucoseWatcher {
                 logger.error("startProtocols");
                 logger.error(exceptionAsString);
             }
-
         }
+    }
 
+    public Map<String, String> getHashMapByParticipantUUID(List<Map<String, String>> list, String participantUUID) {
+        for (Map<String, String> map : list) {
+            if (map.containsKey("participant_uuid") && map.get("participant_uuid").equals(participantUUID)) {
+                return map;
+            }
+        }
+        return new HashMap<>();
     }
 
 } //class

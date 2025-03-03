@@ -5,17 +5,22 @@ require_once __DIR__ . '/../utilities/UUID.php';
 class ProtocolType {
     protected $uuid;
     protected $name;
+    protected $study;
 
     public function __construct() {
         $this->uuid = UUID::v4();
         $this->name = null;
+        $this->study = null;
     }
 
-    public static function create($name): ?ProtocolType {
-        if (empty($name))
+    public static function create($name, $study): ?ProtocolType {
+        if (empty($name) || !isset($name))
             throw new Exception('You must provide a name to create a protocol type');
+        if (empty($study) || !isset($study))
+            throw new Exception('Protocol must belong to a study');
         $instance = new self();
         $instance->setName($name);
+        $instance->setStudy($study);
         try {
             $newProtocol = $instance->save();
         } catch (PDOException $e) {
@@ -31,10 +36,7 @@ class ProtocolType {
         $object = $instance->withID($id);
         $name = $object->getName();
         $status = $instance->deleteFromID($id);
-        $isDeleted = $instance->deleteParticipantGroup($name);
-        if (!$isDeleted) {
-            throw new PDOException('Could not delete participant group.');
-        }
+        $instance->deleteParticipantGroup($name);
         return $status;
     }
 
@@ -51,60 +53,93 @@ class ProtocolType {
             $updatedProtocol = $instance->save();
             $instance->updateParticipantGroup($oldName);
         } catch (PDOException $e) {
-            throw new PDOException($e->getMessage(), $e->getCode());
+            throw new PDOException($e->getMessage(), (int) $e->getCode());
         }
         return $updatedProtocol;
     }
 
     protected function updateParticipantGroup($oldName): void {
         $newName = $this->getName();
-        $stmt = DB::run("UPDATE participants SET participant_json=JSON_MODIFY(participant_json, '$.group', ?) WHERE JSON_VALUE(participant_json, '$.group') = ?",
-        [$newName, $oldName]);
+        $stmt = PostgresDB::run("UPDATE participants SET participant_json = jsonb_set(participant_json, '{group}', (participant_json->'group') - ? || to_jsonb(?::text)::jsonb) WHERE participant_json->'group' ?? ?",
+            [$oldName, $newName, $oldName]);
     }
 
-    protected function deleteParticipantGroup($oldName): bool {
+    protected function deleteParticipantGroup($oldName): void {
         $newName = 'UNASSIGNED';
-        $stmt = DB::run("UPDATE participants SET participant_json=JSON_MODIFY(participant_json, '$.group', ?) WHERE JSON_VALUE(participant_json, '$.group') = ?",
-        [$newName, $oldName]);
-        if ($stmt->rowCount() > 0)
-            return true;
-        else
-            return false;
+        $stmt = PostgresDB::run("UPDATE participants SET participant_json = jsonb_set(participant_json, '{group}', (participant_json->'group') - ? || to_jsonb(?::text)::jsonb) WHERE participant_json->'group' ?? ?",
+            [$oldName,$newName, $oldName]);
     }
 
-    public static function all(): array {
+    public static function all($study): array {
         $types = [];
-        $query = "SELECT * FROM protocol_types";
-        $stmt = DB::run($query);
+        $query = "SELECT * FROM protocol_types WHERE study = :study ORDER BY name ASC";
+        $stmt = PostgresDB::prepare($query);
+        if (!is_null($study) && strlen($study) > 0) {
+            $stmt->bindParam('study', $study);
+        }
+        $stmt->execute();
         while ($row = $stmt->fetch(PDO::FETCH_LAZY))
             array_push($types, ProtocolType::withRow($row));
         return $types;
     }
 
-    public static function countForDatatable(): int {
-        $stmt = DB::run("SELECT count(protocol_type_uuid) FROM protocol_types");
-        $count = $stmt->fetchColumn();
-        return $count;
+    public static function getActives(string $uuid) {
+        $actives = [];
+        $query = "SELECT name FROM protocol_types WHERE protocol_type_uuid IN (SELECT protocol_type_uuid FROM enrollments WHERE participant_uuid = :uuid AND status = true)";
+        $stmt = PostgresDB::prepare($query);
+        $stmt->bindParam('uuid', $uuid);
+        $stmt->execute();
+        while ($row = $stmt->fetch(PDO::FETCH_LAZY))
+            $actives[] = $row['name'];
+        return $actives;
     }
 
-    public static function countFilteredForDatatable(string $filter): int {
-        $query = "SELECT count(protocol_type_uuid) FROM protocol_types";
-        if (!is_null($filter) && strlen($filter) > 0) {
-            $filter = "%{$filter}%";
-            $query .= " WHERE (name LIKE :filter)";
-        }
-        $stmt = DB::prepare($query);
-        if (!is_null($filter) && strlen($filter) > 0) {
-            $stmt->bindParam('filter', $filter);
+    public static function getProtocolStudyAndName(string $protocol_id): ?array {
+        $result = array();
+        $query = "SELECT study, name FROM protocol_types WHERE protocol_type_uuid = :id";
+        $stmt = PostgresDB::prepare($query);
+        $stmt->bindParam('id', $protocol_id);
+        $stmt->execute();
+        if ($row = $stmt->fetch(PDO::FETCH_LAZY))
+            $result['name'] = $row['name'];
+        $result['study'] = $row['study'];
+        return $result;
+
+        return null;
+    }
+
+    public static function countForDatatable($study): int {
+        $query = "SELECT count(protocol_type_uuid) FROM protocol_types WHERE study = :study";
+        $stmt = PostgresDB::prepare($query);
+        if (!is_null($study) && strlen($study) > 0) {
+            $stmt->bindParam('study', $study);
         }
         $stmt->execute();
         $count = $stmt->fetchColumn();
         return $count;
     }
 
-    public static function listForDatatable(int $start, int $length, string $order_by, string $order_dir, string $filter): array {
+    public static function countFilteredForDatatable(string $filter, $study): int {
+        $query = "SELECT count(protocol_type_uuid) FROM protocol_types WHERE study = :study";
+        if (!is_null($filter) && strlen($filter) > 0) {
+            $filter = "%{$filter}%";
+            $query .= " AND (name LIKE :filter)";
+        }
+        $stmt = PostgresDB::prepare($query);
+        if (!is_null($filter) && strlen($filter) > 0) {
+            $stmt->bindParam('filter', $filter);
+        }
+        if (!is_null($study) && strlen($study) > 0) {
+            $stmt->bindParam('study', $study);
+        }
+        $stmt->execute();
+        $count = $stmt->fetchColumn();
+        return $count;
+    }
+
+    public static function listForDatatable(int $start, int $length, string $order_by, string $order_dir, string $filter, string $study): array {
         $matches = [];
-        $query = "SELECT * FROM protocol_types";
+        $query = "SELECT * FROM protocol_types WHERE study = :study";
         $prune = '';
         if ($length > 0)
             $prune .= " OFFSET {$start} ROWS FETCH NEXT {$length} ROWS ONLY";
@@ -114,12 +149,15 @@ class ProtocolType {
             $order_dir = 'desc';
         if (!is_null($filter) && strlen($filter) > 0) {
             $filter = '%' . $filter . '%';
-            $query .= " WHERE (name LIKE :filter)";
+            $query .= " AND (name LIKE :filter)";
         }
         $query .= " ORDER BY {$order_by} {$order_dir}{$prune}";
-        $stmt = DB::prepare($query);
+        $stmt = PostgresDB::prepare($query);
         if (!is_null($filter) && strlen($filter) > 0) {
             $stmt->bindValue('filter', $filter);
+        }
+        if (!is_null($study) && strlen($study) > 0) {
+            $stmt->bindParam('study', $study);
         }
         $stmt->execute();
         while ($row = $stmt->fetch(PDO::FETCH_LAZY))
@@ -154,7 +192,7 @@ class ProtocolType {
     }
 
     protected function loadByID( $id ): void {
-        $stmt = DB::run(
+        $stmt = PostgresDB::run(
             "SELECT * FROM protocol_types WHERE protocol_type_uuid = :id ORDER BY protocol_type_uuid OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY",
             ['id' => $id]
         );
@@ -168,10 +206,11 @@ class ProtocolType {
     protected function fill( $row ): void {
         $this->uuid = $row['protocol_type_uuid'];
         $this->name = $row['name'];
+        $this->study = $row['study'];
     }
 
     protected function loadByName( $name ): void {
-        $stmt = DB::run(
+        $stmt = PostgresDB::run(
             "SELECT * FROM protocol_types WHERE name = :name ORDER BY name OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY",
             ['name' => $name]
         );
@@ -185,20 +224,20 @@ class ProtocolType {
     protected function save(): ?ProtocolType {
         $exists = ProtocolType::withID($this->getID());
         if (is_null($exists)) {
-            $insert = "INSERT INTO protocol_types (protocol_type_uuid, name) VALUES (?,?)";
-            DB::run($insert, [$this->getID(), $this->getName()]);
+            $insert = "INSERT INTO protocol_types (protocol_type_uuid, study, name) VALUES (?::uuid,?,?)";
+            PostgresDB::run($insert, [$this->getID(), $this->getStudy(), $this->getName()]);
         } else {
-            $update = "UPDATE protocol_types SET name=? WHERE protocol_type_uuid=?";
-            DB::run($update, [$this->getName(), $this->getID()]);
+            $update = "UPDATE protocol_types SET name=?, study=? WHERE protocol_type_uuid=?";
+            PostgresDB::run($update, [$this->getName(), $this->getStudy(), $this->getID()]);
         }
         return ProtocolType::withID($this->getID());
     }
 
     protected function deleteFromID( $id ): bool {
-        $stmt = DB::prepare("DELETE FROM protocol_types WHERE protocol_type_uuid = :id");
+        $stmt = PostgresDB::prepare("DELETE FROM protocol_types WHERE protocol_type_uuid = :id");
         $stmt->bindParam('id', $id);
         $stmt->execute();
-        if ($stmt->rowCount() > 0) 
+        if ($stmt->rowCount() > 0)
             return true;
         else
             return false;
@@ -218,11 +257,19 @@ class ProtocolType {
         return $this->name;
     }
 
+    public function getStudy(): string {
+        return $this->study;
+    }
+
     /**
      * @param string $name
      */
     public function setName(string $name): void {
         $this->name = $name;
+    }
+
+    public function setStudy(string $study): void {
+        $this->study = $study;
     }
 
     /**
@@ -231,7 +278,8 @@ class ProtocolType {
     public function jsonSerialize(): array {
         return [
             'id'        => $this->getID(),
-            'name'      => $this->getName()
+            'name'      => $this->getName(),
+            'study'     => $this->getStudy(),
         ];
     }
 }

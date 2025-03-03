@@ -1,30 +1,32 @@
 <?php
-/** @var UserSession $userSession */
+/** @var User $user */
 $page = 'messages-index';
 include_once __DIR__ . '/../_header.php';
+global $rootURL;
 ?>
     <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
         <h1 class="h4 mr-auto p-2">Messages - <span class="text-muted">Overview</span></h1>
-        <a href="/messages/export" class="btn btn-secondary p-2 mr-2">
-            <i class="fas fa-file-export"></i>
-            Export Messages
-        </a>
-        <?php if($userSession->getUser()->getRole() != 1): //1 = non-PHI?>
-        <button type="button" class="btn btn-success p-2" data-toggle="modal" data-target="#messageModal">
-            <i class="fas fa-plus"></i>
-            Send Message
-        </button>
-<?php endif; ?>
+        <div class="float-right">
+            <a href="<?= $rootURL; ?>/messages/export?study=Default" class="btn btn-secondary p-2 mr-2">
+                <i class="fas fa-download"></i>
+                Export Messages
+            </a>
+            <button type="button" class="btn btn-success p-2" data-bs-toggle="modal" data-bs-target="#messageModal">
+                <i class="fas fa-paper-plane"></i>
+                Send Message
+            </button>
+        </div>
     </div>
-<?php if($userSession->getUser()->getRole() == 1): //1 = non-PHI, 2=PI?> 
     <div class="row">
         <div class="col">
             <table id="collection" class="table table-bordered dt-responsive responsive-text" style="width:100%">
                 <thead>
                 <tr>
                     <th>Outgoing/Incoming</th>
-                    <th style="text-align: center;">Message Body</th>
-                    <th style="text-align: center;">Timestamp</th>
+                    <th>Participant Name</th>
+                    <th>Message Body</th>
+                    <th>Timestamp</th>
+                    <th>Time Zone</th>
                 </tr>
                 </thead>
                 <tbody>
@@ -32,42 +34,15 @@ include_once __DIR__ . '/../_header.php';
                 <tfoot>
                 <tr>
                     <th>Outgoing/Incoming</th>
-                    <th style="text-align: center;">Message Body</th>
-                    <th style="text-align: center;">Timestamp</th>
+                    <th>Participant Name</th>
+                    <th>Message Body</th>
+                    <th>Timestamp</th>
+                    <th>Time Zone</th>
                 </tr>
                 </tfoot>
             </table>
         </div>
     </div>
-
-<?php else: //everyone else?> 
-    <div class="row">
-        <div class="col">
-            <table id="collection" class="table table-bordered dt-responsive responsive-text" style="width:100%">
-                <thead>
-                <tr>
-                    <th>Outgoing/Incoming</th>
-                    <th style="text-align: center;">Participant Name</th>
-                    <th style="text-align: center;">Message Body</th>
-                    <th style="text-align: center;">Timestamp</th>
-                    <th style="text-align: center;">Time Zone</th>
-                </tr>
-                </thead>
-                <tbody>
-                </tbody>
-                <tfoot>
-                <tr>
-                    <th>Outgoing/Incoming</th>
-                    <th style="text-align: center;">Participant Name</th>
-                    <th style="text-align: center;">Message Body</th>
-                    <th style="text-align: center;">Timestamp</th>
-                    <th style="text-align: center;">Time Zone</th>
-                </tr>
-                </tfoot>
-            </table>
-        </div>
-    </div>
-<? endif; ?>
 
     <!-- Submit message modal -->  
     <div class="modal fade" id="messageModal" tabindex="-1" role="dialog" aria-labelledby="messageModalLabel" aria-hidden="true">
@@ -75,28 +50,38 @@ include_once __DIR__ . '/../_header.php';
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="messageModalLabel">Send Message</h5>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <div class="row">
-                        <div class="col-sm-12 mb-3 form-floating">
+                        <div class="col-sm-12 mb-3 gx-1 form-floating">
                             <div class="btn-group btn-group-toggle" data-toggle="buttons">
-                                <select class="selectpicker" data-width="fit" id="messageModalParticipant" data-none-selected-text="Select Participants" multiple data-live-search="true" data-live-search-placeholder="Search"></select>
+                                <select class="selectpicker" data-width="100%" id="messageModalParticipant" data-none-selected-text="Select Participants" multiple data-live-search="true" data-live-search-placeholder="Search"></select>
                                 <label id="messageModalParticipant"></label>
                             </div>
                         </div>
                     </div>
                     <div class="row">
-                        <div class="col-sm-12 mb-3 form-floating">
+                        <div class="col-sm-12 mb-3 gx-1 form-floating">
                             <textarea class="form-control" style="pointer-events: auto;" id="messageModalMessage" placeholder="Message..."></textarea>
                             <label for="messageModalMessage">Message</label>
                         </div>
                     </div>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <input type="checkbox" id="nowCheckbox" checked />
+                            <label for="nowCheckbox">Now</label>
+                        </div>
+                        <div class="col-md-8">
+                            <input type="checkbox" id="scheduledCheckbox"/>
+                            <label for="scheduledCheckbox">Scheduled: </label>
+                            <input type="datetime-local" id="scheduledDateTime" />
+
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                     <button id="send-button" type="button" class="btn btn-primary" onclick="send_message();">Send Message</button>
                 </div>
             </div>
@@ -104,141 +89,80 @@ include_once __DIR__ . '/../_header.php';
     </div>
    
     <script type="text/javascript">
-        var messageModal = $('#messageModal');
-        var messageModalParticipant = $('#messageModalParticipant');
-        var messageModalMessage = $('#messageModalMessage');
+        let messageModal = $('#messageModal');
+        let messageModalParticipant = $('#messageModalParticipant');
+        let messageModalMessage = $('#messageModalMessage');
 
-        var collection = {};
-        var collectionTable = $('#collection');
-        var collectionDataTable = null;
+        let collection = {};
+        let collectionTable = $('#collection');
+        let collectionDataTable = null;
 
         $(function() {
-            let user_role = <?php echo $userSession->getUser()->getRole(); ?>;
-            if (user_role == 1) {
-                collectionDataTable = collectionTable.DataTable({
-                    serverSide: false,
-                    ajax: {
-                        url: "/messages/list"
+            collectionDataTable = collectionTable.DataTable({
+                serverSide: true,
+                processing: true,
+                ajax: {
+                    url: "/messages/list",
+                    data: {'study': 'Default'}
+                },
+                order: [[ 3, "desc" ]],
+                responsive: true,
+                dom: 'Bfrtip',
+                buttons: [
+                    'pageLength', 'colvis'
+                ],
+                columnDefs: [
+                    {
+                        className: "dt-center",
+                        targets: '_all'
                     },
-                    order: [[ 2, "desc" ]],
-                    responsive: true,
-                    dom: 'Bfrtip',
-                    buttons: [
-                        'pageLength', 'colvis'
-                    ],
-                    columnDefs: [
-                        {
-                            className: "dt-center",
-                            targets: [0,1,2,3]
-                        },
-                        {
-                            orderable: true,
-                            targets: [0,1,2,3]
-                        },
-                        {
-                            type: "date",
-                            targets: [2]
-                        }
-                    ],
-                    language: {
-                        emptyTable: "No messages have been sent/received yet."
+                    {
+                        orderable: true,
+                        targets: '_all'
                     },
-                    pagingType: "full_numbers",
-                    columns: [
-                        {
-                            data: 'direction'
-                        },
-                        {
-                            data: null,
-                            render: function (data) {
-                                let body_json = JSON.parse(data.json);
-                                let body = body_json.Body;
-                                return body;
-                            } 
-                        },
-                        {
-                            data: 'TS',
-                        },
-                        {
-                            data: 'time_zone',
-                        }
-                    ]
-                });
-                collectionDataTable.buttons().container().prependTo('#collection_filter');
-                collectionDataTable.buttons().container().addClass('float-left');
-                $('.dt-buttons').addClass('btn-group-sm');
-                $('.dt-buttons div').addClass('btn-group-sm');
-                collectionTable.on('xhr.dt', function (e, settings, data) {
-                    messages = {};
-                    $.each(data.data, function(i, v) {
-                        messages[v.uuid] = v;
-                    });
-                });
-            } else {
-                collectionDataTable = collectionTable.DataTable({
-                    serverSide: false,
-                    ajax: {
-                        url: "/messages/list"
+                    {
+                        type: "date",
+                        targets: [3]
+                    }
+                ],
+                language: {
+                    emptyTable: "No messages have been sent/received yet."
+                },
+                pagingType: "full_numbers",
+                columns: [
+                    {
+                        data: 'direction'
                     },
-                    order: [[ 3, "desc" ]],
-                    responsive: true,
-                    dom: 'Bfrtip',
-                    buttons: [
-                        'pageLength', 'colvis'
-                    ],
-                    columnDefs: [
-                        {
-                            className: "dt-center",
-                            targets: [0,1,2,3,4]
-                        },
-                        {
-                            orderable: true,
-                            targets: [0,1,2,3,4]
-                        },
-                        {
-                            type: "date",
-                            targets: [3]
-                        }
-                    ],
-                    language: {
-                        emptyTable: "No messages have been sent/received yet."
+                    {
+                        data: 'participant_name'
                     },
-                    pagingType: "full_numbers",
-                    columns: [
-                        {
-                            data: 'direction'
-                        },
-                        {
-                            data: 'participant_name'
-                        },
-                        {
-                            data: null,
-                            render: function (data) {
-                                let body_json = JSON.parse(data.json);
-                                let body = body_json.Body;
-                                return body;
-                            } 
-                        },
-                        {
-                            data: 'TS',
-                        },
-                        {
-                            data: 'time_zone',
+                    {
+                        data: null,
+                        render: function (data) {
+                            let body_json = JSON.parse(data.json);
+                            return body_json.Body;
                         }
-                    ]
-                });
+                    },
+                    {
+                        data: 'ts',
+                    },
+                    {
+                        data: 'time_zone',
+                    }
+                ]
+            });
 
-                collectionDataTable.buttons().container().prependTo('#collection_filter');
-                collectionDataTable.buttons().container().addClass('float-left');
-                $('.dt-buttons').addClass('btn-group-sm');
-                $('.dt-buttons div').addClass('btn-group-sm');
-                collectionTable.on('xhr.dt', function (e, settings, data) {
-                    messages = {};
-                    $.each(data.data, function(i, v) {
-                        messages[v.uuid] = v;
-                    });
+            collectionDataTable.buttons().container().prependTo('#collection_filter');
+            collectionDataTable.buttons().container().addClass('float-left');
+            $('.dt-buttons').addClass('btn-group-sm');
+            $('.dt-buttons div').addClass('btn-group-sm');
+            collectionTable.on('xhr.dt', function (e, settings, data) {
+                messages = {};
+                $.each(data.data, function(i, v) {
+                    messages[v.uuid] = v;
                 });
-            }
+            });
+
         });
 
         messageModal.on('hidden.bs.modal', function() {
@@ -280,19 +204,32 @@ include_once __DIR__ . '/../_header.php';
         });
 
         function send_message(){
+            let scheduled_time = -1;
+            if ($("#scheduledCheckbox").prop("checked")){
+                scheduled_time = $("#scheduledDateTime").val();
+            }
+            //  format 2023-10-30T10:14
+
             // ajax to send message
             $.ajax({
                 url: '/messages/send',
                 type: 'POST',
                 data: {
                     'participant_uuid': messageModalParticipant.val(),
-                    'body': messageModalMessage.val()
+                    'body': messageModalMessage.val(),
+                    'study': 'Default',
+                    'time_to_send': scheduled_time
                 },
                 success: function(data) {
                     if (data.success) {
-                        showSuccess('Message sent successfully.');
+                        if ($("#scheduledCheckbox").prop("checked")){
+                            showSuccess('Message scheduled successfully.');
+                        } else {
+                            showSuccess('Message sent successfully.');
+                        }
                         messageModal.modal('hide');
                         collectionDataTable.ajax.reload();
+                        collectionScheduledDataTable.ajax.reload();
                     } else {
                         showError(data.error_message);
                         return null;
