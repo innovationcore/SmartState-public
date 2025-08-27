@@ -119,6 +119,16 @@ function appendMessageImg(name, img, side, message_img) {
   msgerChat.scrollTop += 500;
 }
 
+// Escape HTML entities in user-provided text to prevent XSS
+function escapeHTML(str) {
+	return String(str)
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;')
+		.replace(/"/g, '&quot;')
+		.replace(/'/g, '&#39;');
+}
+
 function appendMessage(name, img, side, text, audio) {
 	//   Simple solution for small apps
 	let msgHTML = `
@@ -132,7 +142,7 @@ function appendMessage(name, img, side, text, audio) {
 		  </div>
   
 		  <div class="msg-text">
-		  ${text}<br>
+		  ${escapeHTML(text)}<br>
 		  </div>
 		</div>
 	  </div>
@@ -140,7 +150,7 @@ function appendMessage(name, img, side, text, audio) {
   
 	msgerChat.insertAdjacentHTML("beforeend", msgHTML);
 	msgerChat.scrollTop += 500;
-  }
+}
 
 function appendMessageError(name, img, side, text) {
 	//   Simple solution for small apps
